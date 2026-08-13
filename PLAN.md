@@ -39,7 +39,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 **Known limitation:** a user's org context is fixed to their first
 membership at token-issue time — no "switch organization" endpoint yet.
 
-## Phase 2 — Core Data ✅ pushed, awaiting merge (`phase/2-core-data`)
+## Phase 2 — Core Data ✅ merged to `develop`
 
 - [x] Customers: CRUD, name/email search, status filter, `lifetime_value`
 - [x] Products: CRUD, category filter, active/inactive filter
@@ -57,14 +57,30 @@ org only gains members via registration (its creator, as OWNER).
 
 ---
 
-## Phase 3 — Analytics `[ ]` not started
+## Phase 3 — Analytics ✅ pushed, awaiting merge (`phase/3-analytics`)
 
-- [ ] `GET /analytics/overview` — revenue, order count, customer count, AOV
-- [ ] `GET /analytics/revenue` — trend over time, date-range filter
-- [ ] `GET /analytics/products` — top products, product performance
-- [ ] `GET /analytics/customers` — activity, at-risk detection
-- [ ] Date-range comparison support (e.g. this month vs. last month)
-- [ ] Tests: metric correctness against known seeded data, tenant isolation
+- [x] `GET /analytics/overview` — revenue, order count, AOV, customer counts
+- [x] `GET /analytics/revenue` — day/week/month trend buckets, date-range filter
+- [x] `GET /analytics/products` — top products by revenue, deterministic
+      tie-break ordering
+- [x] `GET /analytics/customers` — total/new/active/at-risk counts
+- [x] `compare_revenue()` service function (period-over-period), built for
+      reuse by the Phase 5 AI tool of the same name — no dedicated REST
+      endpoint since the spec's API table doesn't list one
+- [x] Date-range validation (`start_date` > `end_date` → 422), default to
+      trailing 30 days when omitted
+- [x] Read-only for any org member (no role restriction)
+- [x] 7 tests (33 total): metric correctness against known seeded data,
+      cancelled-order exclusion, day-bucketing, tenant isolation, invalid
+      range rejection, default-range fallback
+
+**Known limitations:** revenue counts `pending`+`completed` orders only
+(documented interpretation, not spec-mandated); "at-risk" customers are
+read from the stored `Customer.status` field, not computed from order
+recency; the revenue trend endpoint does not backfill zero-revenue date
+gaps.
+
+---
 
 ## Phase 4 — AI Gateway `[ ]` not started
 
@@ -134,11 +150,11 @@ org only gains members via registration (its creator, as OWNER).
 |---|---|---|
 | 0 — Setup | ✅ Merged | `phase/0-setup` (deleted) |
 | 1 — Auth | ✅ Merged | `phase/1-auth` (deleted) |
-| 2 — Core Data | 🟡 Pushed, awaiting merge | `phase/2-core-data` |
-| 3 — Analytics | ⬜ Not started | — |
+| 2 — Core Data | ✅ Merged | `phase/2-core-data` (deleted) |
+| 3 — Analytics | 🟡 Pushed, awaiting merge | `phase/3-analytics` |
 | 4–10 | ⬜ Not started | — |
 
-**Test count:** 26 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 33 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
-**Next action:** merge `phase/2-core-data` into `develop` on GitHub, then
-start Phase 3 — Analytics.
+**Next action:** merge `phase/3-analytics` into `develop` on GitHub, then
+start Phase 4 — AI Gateway.
