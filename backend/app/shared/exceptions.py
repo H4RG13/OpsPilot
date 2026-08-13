@@ -22,7 +22,7 @@ class NotFoundError(AppError):
 
 class ValidationAppError(AppError):
     code = "VALIDATION_ERROR"
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class AuthenticationError(AppError):

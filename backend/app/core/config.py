@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @model_validator(mode="after")
+    def _require_strong_secret_in_production(self) -> "Settings":
+        if self.is_production and (self.secret_key == "change-me" or len(self.secret_key) < 32):
+            raise ValueError(
+                "SECRET_KEY must be set to a strong, unique value (>=32 chars) in production."
+            )
+        return self
 
 
 @lru_cache
