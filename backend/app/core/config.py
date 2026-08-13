@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ai_default_model: str = "gpt-oss-20b"
     ai_reasoning_model: str = "gpt-oss-120b"
     ai_vision_model: str = "qwen-3.6-27b"
+    ai_request_timeout_seconds: float = 30.0
+    ai_max_retries_per_model: int = 2
 
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30

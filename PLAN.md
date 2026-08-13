@@ -57,7 +57,7 @@ org only gains members via registration (its creator, as OWNER).
 
 ---
 
-## Phase 3 — Analytics ✅ pushed, awaiting merge (`phase/3-analytics`)
+## Phase 3 — Analytics ✅ merged to `develop`
 
 - [x] `GET /analytics/overview` — revenue, order count, AOV, customer counts
 - [x] `GET /analytics/revenue` — day/week/month trend buckets, date-range filter
@@ -82,14 +82,33 @@ gaps.
 
 ---
 
-## Phase 4 — AI Gateway `[ ]` not started
+## Phase 4 — AI Gateway ✅ pushed, awaiting merge (`phase/4-ai-gateway`)
 
-- [ ] `AIProvider` protocol (`generate_text`, `generate_structured`,
+- [x] `AIProvider` protocol (`generate_text`, `generate_structured`,
       `generate_with_tools`, `generate_vision`)
-- [ ] `GroqProvider` implementation
-- [ ] `ModelRouter` — task type → model mapping (Section 26 policy)
-- [ ] Retry + fallback policy, usage/cost/latency logging (`ai_usage` table)
-- [ ] Tests with a mocked provider (no live LLM calls in the suite)
+- [x] `GroqProvider` implementation (OpenAI-compatible wire format over httpx)
+- [x] `ModelRouter` — task type → model mapping with two-tier fallback
+      chain (Section 26 policy); vision model has no fallback
+- [x] `AIService`: retry-then-fallback execution shared by `generate_text`
+      and `generate_with_tools`, distinguishing transient (retry/fallback)
+      from permanent (fail-fast to next model) provider errors
+- [x] `ai_usage` table + `GET /ai/usage` (paginated, `ADMIN`+ only)
+- [x] Alembic migration `0003`
+- [x] 18 new tests (51 total): `ModelRouter` chain resolution, `AIService`
+      retry/fallback/all-models-fail paths against a fake provider,
+      `GroqProvider` request/response parsing and error classification via
+      `httpx.MockTransport` (no live LLM calls anywhere in the suite),
+      usage endpoint auth + tenant scoping
+
+**Known limitations:** no HTTP endpoint calls the gateway yet — that's
+Phase 5's Copilot; per-model costs in `ai/cost.py` are placeholder
+estimates, not verified Groq pricing.
+
+**Fixed during implementation:** an empty `ai/models/` package directory
+left over from the Phase 0 scaffold silently shadowed the new
+`ai/models.py` ORM module (Python resolves a package over a same-named
+module) — deleted the stub since it was unused and every other module
+keeps its ORM models in `models.py`.
 
 ## Phase 5 — Copilot `[ ]` not started
 
@@ -151,10 +170,11 @@ gaps.
 | 0 — Setup | ✅ Merged | `phase/0-setup` (deleted) |
 | 1 — Auth | ✅ Merged | `phase/1-auth` (deleted) |
 | 2 — Core Data | ✅ Merged | `phase/2-core-data` (deleted) |
-| 3 — Analytics | 🟡 Pushed, awaiting merge | `phase/3-analytics` |
-| 4–10 | ⬜ Not started | — |
+| 3 — Analytics | ✅ Merged | `phase/3-analytics` (deleted) |
+| 4 — AI Gateway | 🟡 Pushed, awaiting merge | `phase/4-ai-gateway` |
+| 5–10 | ⬜ Not started | — |
 
-**Test count:** 33 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 51 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
-**Next action:** merge `phase/3-analytics` into `develop` on GitHub, then
-start Phase 4 — AI Gateway.
+**Next action:** merge `phase/4-ai-gateway` into `develop` on GitHub, then
+start Phase 5 — Copilot.
