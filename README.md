@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 2 — Core Data.** See `RULES.md` for the branching
+> Status: **Phase 3 — Analytics.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,7 +114,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 2)
+## Known Limitations (Phase 3)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -134,5 +134,19 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
   financial values" principle.
 - There is no "add member to organization" endpoint yet — an organization
   currently only gains members via registration (its creator, as OWNER).
-- Analytics and the AI Gateway land in subsequent phases per the roadmap
+- Analytics is implemented: `GET /analytics/overview` (revenue, order
+  count, AOV, customer counts), `GET /analytics/revenue` (day/week/month
+  trend buckets), `GET /analytics/products` (top products by revenue),
+  `GET /analytics/customers` (total/new/active/at-risk counts). All accept
+  optional `start_date`/`end_date` (default: last 30 days) and are read
+  for any org member — no write access is involved.
+- Revenue metrics count `pending` + `completed` orders as "booked" revenue
+  and exclude `cancelled` orders; this is a documented interpretation, not
+  a spec-mandated definition. "At-risk" customers are read directly from
+  the `Customer.status` field set by the caller (Phase 2) rather than
+  computed from order recency — there's no automatic at-risk detection
+  heuristic yet.
+- The revenue trend endpoint only returns buckets that contain at least
+  one order — it does not backfill zero-revenue gaps in the date range.
+- The AI Gateway and Copilot land in subsequent phases per the roadmap
   above.
