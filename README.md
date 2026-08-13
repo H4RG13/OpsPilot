@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 1 — Authentication.** See `RULES.md` for the branching
+> Status: **Phase 2 — Core Data.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,14 +114,25 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 1)
+## Known Limitations (Phase 2)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
   logout (refresh-token revocation), `GET /me`, `GET /organizations/current`,
-  and role-based (`OWNER`/`ADMIN`/`MEMBER`) authorization scaffolding.
+  and role-based (`OWNER`/`ADMIN`/`MEMBER`) authorization.
 - A user's organization context is fixed at token-issue time to their first
   membership — there is no "switch organization" endpoint yet for users
   belonging to multiple organizations.
-- Domain CRUD (customers/products/orders), analytics, and the AI Gateway
-  land in subsequent phases per the roadmap above.
+- Core data CRUD is implemented: Customers (search + status filter),
+  Products (category + active filter), Orders + order items. All list
+  endpoints are paginated. Reads are open to any org member; writes
+  (create/update/delete) require the `ADMIN` role or higher — `MEMBER`s are
+  read-only by default.
+- Order totals and item unit prices are always computed server-side from
+  the current product price at order-creation time and are never accepted
+  from the client, per the spec's "never let an LLM/client silently alter
+  financial values" principle.
+- There is no "add member to organization" endpoint yet — an organization
+  currently only gains members via registration (its creator, as OWNER).
+- Analytics and the AI Gateway land in subsequent phases per the roadmap
+  above.
