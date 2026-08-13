@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 3 — Analytics.** See `RULES.md` for the branching
+> Status: **Phase 4 — AI Gateway.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,7 +114,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 3)
+## Known Limitations (Phase 4)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -148,5 +148,21 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
   heuristic yet.
 - The revenue trend endpoint only returns buckets that contain at least
   one order — it does not backfill zero-revenue gaps in the date range.
-- The AI Gateway and Copilot land in subsequent phases per the roadmap
-  above.
+- The AI Gateway is implemented: `AIProvider` protocol (`generate_text`,
+  `generate_structured`, `generate_with_tools`, `generate_vision`),
+  `GroqProvider` (OpenAI-compatible wire format), `ModelRouter` mapping
+  task type → model with a two-tier fallback chain (cheap model ↔
+  reasoning model; the vision model has no fallback), retry-then-fallback
+  execution in `AIService`, and per-call usage/cost/latency logging to
+  `ai_usage`. `GET /ai/usage` (paginated, `ADMIN`+ only) exposes it.
+- There is no HTTP endpoint that calls the AI Gateway yet — no chat/
+  conversation surface exists until Phase 5 wires the Copilot on top of
+  `AIService`. Phase 4 is the internal plumbing, verified with a fake
+  provider and `httpx.MockTransport` against Groq's wire format — the
+  test suite never makes a live LLM call.
+- Estimated per-model costs in `ai/cost.py` are placeholder figures for
+  relative tracking, not verified current Groq pricing — the spec calls
+  this out explicitly (Section 33) as something to confirm before relying
+  on it for real budget decisions.
+- The Copilot (conversations, tool calling) lands in Phase 5 per the
+  roadmap above.
