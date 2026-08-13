@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AITaskType(StrEnum):
@@ -56,3 +57,51 @@ class AIUsageRecordResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ConversationCreate(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+
+
+class ConversationResponse(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class MessageCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class MessageResponse(BaseModel):
+    id: uuid.UUID
+    role: str
+    content: str
+    model: str | None
+    provider: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class Insight(BaseModel):
+    title: str
+    severity: Literal["low", "medium", "high"]
+    evidence: str
+
+
+class SuggestedTask(BaseModel):
+    title: str
+    priority: Literal["low", "medium", "high"]
+
+
+class StructuredAIAnswer(BaseModel):
+    """The Copilot's response shape (spec Section 12) — never let the frontend
+    depend on unpredictable free-form parsing."""
+
+    answer: str
+    insights: list[Insight] = []
+    recommendations: list[str] = []
+    suggested_tasks: list[SuggestedTask] = []

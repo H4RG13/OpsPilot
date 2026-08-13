@@ -7,7 +7,7 @@ from app.core.database import Base, get_db
 from app.main import app
 
 # Ensure all ORM models are registered on Base.metadata before create_all.
-from app.modules.ai.models import AIUsage  # noqa: F401
+from app.modules.ai.models import AIConversation, AIMessage, AIUsage  # noqa: F401
 from app.modules.auth.models import RefreshToken  # noqa: F401
 from app.modules.customers.models import Customer  # noqa: F401
 from app.modules.orders.models import Order, OrderItem  # noqa: F401

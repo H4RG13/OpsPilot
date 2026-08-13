@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import configure_logging, request_id_ctx
+from app.modules.ai.conversations_router import router as ai_conversations_router
 from app.modules.ai.usage_router import router as ai_usage_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.auth.router import me_router
@@ -38,6 +39,7 @@ app.include_router(products_router, prefix=API_V1_PREFIX)
 app.include_router(orders_router, prefix=API_V1_PREFIX)
 app.include_router(analytics_router, prefix=API_V1_PREFIX)
 app.include_router(ai_usage_router, prefix=API_V1_PREFIX)
+app.include_router(ai_conversations_router, prefix=API_V1_PREFIX)
 
 
 @app.middleware("http")
