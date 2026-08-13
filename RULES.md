@@ -130,7 +130,28 @@ from `main` after merging from `staging`.
 - Generated artifacts (`__pycache__/`, `node_modules/`, `dist/`, `.venv/`).
 - Direct commits to `main`/`staging`/`develop`.
 
-## 9. Solo/Portfolio Workflow Note
+## 9. Read This File First — Branch Reuse Policy
+
+Before starting any task in this repository (human or AI-assisted), **read
+this file first** to confirm the current branch/commit conventions are being
+followed.
+
+Before creating a new branch, check whether an existing branch already
+covers the same task or a directly related one (same phase, same module,
+same unmerged feature in progress):
+
+- If the task is a continuation, fix, or refinement of work on an
+  **existing, unmerged** branch, **reuse that branch** — commit to it rather
+  than creating a new one. Check `git branch -a` and open PRs first.
+- If the task is a genuinely new feature/phase/fix, create a new branch
+  following the naming convention in Section 2.
+- Never reuse a branch that has already been merged and deleted — cut a new
+  one instead, even if the scope looks similar.
+- When in doubt, prefer reuse for anything still in progress on `develop`;
+  this keeps history efficient and avoids branch sprawl for what is
+  effectively one unit of work.
+
+## 10. Solo/Portfolio Workflow Note
 
 This project is developed primarily by one contributor for portfolio
 purposes. The branch model above is still followed in full — including PRs
