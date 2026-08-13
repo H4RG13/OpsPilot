@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import configure_logging, request_id_ctx
+from app.modules.auth.router import me_router
+from app.modules.auth.router import router as auth_router
+from app.modules.organizations.router import router as organizations_router
 from app.shared.exceptions import AppError, app_error_handler
 
 configure_logging()
@@ -20,6 +23,11 @@ app.add_middleware(
 )
 
 app.add_exception_handler(AppError, app_error_handler)
+
+API_V1_PREFIX = "/api/v1"
+app.include_router(auth_router, prefix=API_V1_PREFIX)
+app.include_router(me_router, prefix=API_V1_PREFIX)
+app.include_router(organizations_router, prefix=API_V1_PREFIX)
 
 
 @app.middleware("http")

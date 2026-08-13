@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 0 — Foundation setup.** See `RULES.md` for the branching
+> Status: **Phase 1 — Authentication.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,10 +114,14 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 0)
+## Known Limitations (Phase 1)
 
-- No feature logic yet — this is the foundational scaffold (Docker Compose,
-  FastAPI skeleton with a health check, React/Vite skeleton, module folder
-  structure, Alembic wiring).
-- Auth, tenancy, domain CRUD, analytics, and the AI Gateway land in
-  subsequent phases per the roadmap above.
+- Auth is implemented: register (creates an organization + OWNER
+  membership), login, JWT access/refresh tokens with rotation-on-refresh,
+  logout (refresh-token revocation), `GET /me`, `GET /organizations/current`,
+  and role-based (`OWNER`/`ADMIN`/`MEMBER`) authorization scaffolding.
+- A user's organization context is fixed at token-issue time to their first
+  membership — there is no "switch organization" endpoint yet for users
+  belonging to multiple organizations.
+- Domain CRUD (customers/products/orders), analytics, and the AI Gateway
+  land in subsequent phases per the roadmap above.

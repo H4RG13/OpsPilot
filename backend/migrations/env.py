@@ -8,6 +8,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.core.config import settings
 from app.core.database import Base
 
+# Import all ORM models so Base.metadata is fully populated for autogenerate.
+from app.modules.auth.models import RefreshToken  # noqa: F401
+from app.modules.organizations.models import Organization, OrganizationMember  # noqa: F401
+from app.modules.users.models import User  # noqa: F401
+
 config = context.config
 
 if config.config_file_name is not None:

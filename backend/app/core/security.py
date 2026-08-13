@@ -1,25 +1,38 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 ALGORITHM = "HS256"
+
+# bcrypt silently ignores/errors on input beyond 72 bytes; reject rather than
+# truncate so long passwords don't collide on their shared 72-byte prefix.
+MAX_PASSWORD_BYTES = 72
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > MAX_PASSWORD_BYTES:
+        raise ValueError(f"Password must not exceed {MAX_PASSWORD_BYTES} bytes.")
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    password_bytes = plain_password.encode("utf-8")
+    if len(password_bytes) > MAX_PASSWORD_BYTES:
+        return False
+    return bcrypt.checkpw(password_bytes, hashed_password.encode("utf-8"))
 
 
-def _create_token(subject: str, expires_delta: timedelta, token_type: Literal["access", "refresh"], extra_claims: dict[str, Any] | None = None) -> str:
+def _create_token(
+    subject: str,
+    expires_delta: timedelta,
+    token_type: Literal["access", "refresh"],
+    extra_claims: dict[str, Any] | None = None,
+) -> str:
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
@@ -41,12 +54,13 @@ def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None
     )
 
 
-def create_refresh_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
+def create_refresh_token(subject: str, jti: str, extra_claims: dict[str, Any] | None = None) -> str:
+    claims = {"jti": jti, **(extra_claims or {})}
     return _create_token(
         subject,
         timedelta(days=settings.refresh_token_expire_days),
         "refresh",
-        extra_claims,
+        claims,
     )
 
 
