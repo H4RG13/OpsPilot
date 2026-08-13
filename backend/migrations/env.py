@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.database import Base
 
 # Import all ORM models so Base.metadata is fully populated for autogenerate.
-from app.modules.ai.models import AIUsage  # noqa: F401
+from app.modules.ai.models import AIConversation, AIMessage, AIUsage  # noqa: F401
 from app.modules.auth.models import RefreshToken  # noqa: F401
 from app.modules.customers.models import Customer  # noqa: F401
 from app.modules.orders.models import Order, OrderItem  # noqa: F401

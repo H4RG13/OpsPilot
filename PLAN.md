@@ -82,7 +82,7 @@ gaps.
 
 ---
 
-## Phase 4 — AI Gateway ✅ pushed, awaiting merge (`phase/4-ai-gateway`)
+## Phase 4 — AI Gateway ✅ merged to `develop`
 
 - [x] `AIProvider` protocol (`generate_text`, `generate_structured`,
       `generate_with_tools`, `generate_vision`)
@@ -100,8 +100,7 @@ gaps.
       `httpx.MockTransport` (no live LLM calls anywhere in the suite),
       usage endpoint auth + tenant scoping
 
-**Known limitations:** no HTTP endpoint calls the gateway yet — that's
-Phase 5's Copilot; per-model costs in `ai/cost.py` are placeholder
+**Known limitations:** per-model costs in `ai/cost.py` are placeholder
 estimates, not verified Groq pricing.
 
 **Fixed during implementation:** an empty `ai/models/` package directory
@@ -110,18 +109,40 @@ left over from the Phase 0 scaffold silently shadowed the new
 module) — deleted the stub since it was unused and every other module
 keeps its ORM models in `models.py`.
 
-## Phase 5 — Copilot `[ ]` not started
+---
 
-- [ ] `ai_conversations` / `ai_messages` tables
-- [ ] `POST /ai/conversations`, `GET /ai/conversations`,
-      `POST /ai/conversations/{id}/messages`
-- [ ] Tool registry: `get_revenue_summary`, `compare_revenue`,
-      `get_top_products`, `get_customer_metrics`, `get_at_risk_customers`,
-      `get_order_summary`, `search_customers`, `create_task`,
-      `list_open_tasks` — every tool enforces caller's `organization_id`
-- [ ] Structured response schema (answer/insights/recommendations/
-      suggested_tasks)
-- [ ] Tests: tool authorization, structured-response schema validation
+## Phase 5 — Copilot ✅ pushed, awaiting merge (`phase/5-copilot`)
+
+- [x] `ai_conversations` / `ai_messages` tables + Alembic migration `0004`
+- [x] `POST /ai/conversations`, `GET /ai/conversations` (scoped to the
+      caller — chat history is personal), `POST
+      /ai/conversations/{id}/messages`
+- [x] Tool registry: `get_revenue_summary`, `compare_revenue`,
+      `get_order_summary`, `get_top_products`, `get_customer_metrics`,
+      `get_at_risk_customers`, `search_customers` — every tool's
+      `organization_id` is server-injected, never part of the LLM-facing
+      argument schema
+- [x] `CopilotService`: up to 3 rounds of tool-calling via
+      `AIService.generate_with_tools` before forcing a final answer;
+      structured JSON parsed into `StructuredAIAnswer`, with a safe
+      fallback (raw text as `answer`, empty lists) if the model's output
+      isn't valid JSON matching the schema
+- [x] Only the user's question and the final answer are persisted to
+      `ai_messages` — intermediate tool-calling turns are ephemeral per
+      request (full usage/cost accounting for every underlying call still
+      lands in `ai_usage` via `AIService`, regardless)
+- [x] 13 new tests (64 total): tool execution + org enforcement + unknown
+      tool/invalid-argument errors, `CopilotService` tool-loop/fallback/
+      max-rounds paths against a scripted fake provider, conversations
+      router end-to-end (create → message → structured response) and
+      cross-user/cross-tenant isolation
+
+**Known limitation — deliberate scope cut:** `create_task` and
+`list_open_tasks` from the spec's Section 10 tool list are **not**
+implemented — they depend on the Tasks module, which is Phase 6
+(Automation) per the roadmap. Building Tasks now just to satisfy the tool
+list would jump ahead of the phase ordering; the registry is structured so
+adding them in Phase 6 won't require touching the Copilot orchestration.
 
 ## Phase 6 — Automation `[ ]` not started
 
@@ -171,10 +192,12 @@ keeps its ORM models in `models.py`.
 | 1 — Auth | ✅ Merged | `phase/1-auth` (deleted) |
 | 2 — Core Data | ✅ Merged | `phase/2-core-data` (deleted) |
 | 3 — Analytics | ✅ Merged | `phase/3-analytics` (deleted) |
-| 4 — AI Gateway | 🟡 Pushed, awaiting merge | `phase/4-ai-gateway` |
-| 5–10 | ⬜ Not started | — |
+| 4 — AI Gateway | ✅ Merged | `phase/4-ai-gateway` (deleted) |
+| 5 — Copilot | 🟡 Pushed, awaiting merge | `phase/5-copilot` |
+| 6–10 | ⬜ Not started | — |
 
-**Test count:** 51 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 64 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
-**Next action:** merge `phase/4-ai-gateway` into `develop` on GitHub, then
-start Phase 5 — Copilot.
+**Next action:** merge `phase/5-copilot` into `develop` on GitHub, then
+start Phase 6 — Automation (Tasks module — including the deferred
+`create_task`/`list_open_tasks` tools — Celery, weekly reports).

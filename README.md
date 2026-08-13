@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 4 — AI Gateway.** See `RULES.md` for the branching
+> Status: **Phase 5 — Copilot.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,7 +114,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 4)
+## Known Limitations (Phase 5)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -155,14 +155,35 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
   reasoning model; the vision model has no fallback), retry-then-fallback
   execution in `AIService`, and per-call usage/cost/latency logging to
   `ai_usage`. `GET /ai/usage` (paginated, `ADMIN`+ only) exposes it.
-- There is no HTTP endpoint that calls the AI Gateway yet — no chat/
-  conversation surface exists until Phase 5 wires the Copilot on top of
-  `AIService`. Phase 4 is the internal plumbing, verified with a fake
-  provider and `httpx.MockTransport` against Groq's wire format — the
-  test suite never makes a live LLM call.
 - Estimated per-model costs in `ai/cost.py` are placeholder figures for
   relative tracking, not verified current Groq pricing — the spec calls
   this out explicitly (Section 33) as something to confirm before relying
   on it for real budget decisions.
-- The Copilot (conversations, tool calling) lands in Phase 5 per the
-  roadmap above.
+- The Copilot is implemented: `POST /ai/conversations`, `GET
+  /ai/conversations` (scoped to the caller — chat history is personal,
+  not shared org-wide), `POST /ai/conversations/{id}/messages`. A question
+  runs through `AIService.generate_with_tools`, executing up to 3 rounds
+  of tool calls before forcing a final answer, and returns the structured
+  `{answer, insights, recommendations, suggested_tasks}` shape from spec
+  Section 12. If the model's final response isn't valid JSON matching that
+  schema, the raw text is returned as `answer` with empty lists rather
+  than failing the request — the frontend never has to parse unpredictable
+  free-form output.
+- Seven read-only tools are registered: `get_revenue_summary`,
+  `compare_revenue`, `get_order_summary`, `get_top_products`,
+  `get_customer_metrics`, `get_at_risk_customers`, `search_customers`.
+  Every tool's `organization_id` is injected by the server from the
+  authenticated context — it is never part of the tool's argument schema,
+  so the model has no way to request another tenant's data even if it
+  tried.
+- `create_task` and `list_open_tasks` are **not** implemented yet — they
+  depend on the Tasks module, which is Phase 6 (Automation) per the
+  roadmap. The tool registry is designed to have them added there without
+  touching the Copilot orchestration.
+- Only the user's question and the model's final answer are persisted to
+  `ai_messages`; intermediate tool-call/tool-result turns are ephemeral
+  within a single request. Full usage/cost/latency accounting for every
+  underlying model call (including intermediate tool-calling rounds)
+  still lands in `ai_usage` regardless, via `AIService`.
+- Tested entirely against a scripted fake provider — no live LLM calls in
+  the suite, consistent with every prior phase.
