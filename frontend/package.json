@@ -1,0 +1,36 @@
+{
+  "name": "ai-operations-copilot-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "@tanstack/react-query": "^5.59.0",
+    "recharts": "^2.13.0",
+    "axios": "^1.7.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "tailwindcss": "^3.4.14",
+    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.20",
+    "vitest": "^2.1.4",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/jest-dom": "^6.6.2",
+    "jsdom": "^25.0.1",
+    "eslint": "^9.13.0"
+  }
+}
