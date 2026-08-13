@@ -1,12 +1,13 @@
 import json
 import uuid
 
-from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.ai.models import AIConversation, AIMessage
+from app.modules.ai.parsing import parse_structured_answer
 from app.modules.ai.schemas import AITaskType, StructuredAIAnswer
 from app.modules.ai.service import AIService
+from app.modules.ai.tools.base import ToolContext
 from app.modules.ai.tools.registry import execute_tool, get_tool_schemas
 
 MAX_TOOL_ROUNDS = 3
@@ -35,16 +36,21 @@ class CopilotService:
         user_id: uuid.UUID,
         conversation: AIConversation,
         user_message: str,
+        allow_tool_writes: bool = False,
     ) -> StructuredAIAnswer:
         db.add(AIMessage(conversation_id=conversation.id, role="user", content=user_message))
         await db.commit()
+
+        tool_ctx = ToolContext(
+            organization_id=organization_id, user_id=user_id, allow_writes=allow_tool_writes
+        )
 
         messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
         for past in conversation.messages:
             messages.append({"role": past.role, "content": past.content})
         messages.append({"role": "user", "content": user_message})
 
-        tool_schemas = get_tool_schemas()
+        tool_schemas = get_tool_schemas(tool_ctx.allow_writes)
         final_response = None
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -62,7 +68,7 @@ class CopilotService:
 
             messages.append({"role": "assistant", "content": response.content or ""})
             for call in response.tool_calls:
-                result = await execute_tool(db, organization_id, call.name, call.arguments)
+                result = await execute_tool(db, tool_ctx, call.name, call.arguments)
                 messages.append(
                     {"role": "tool", "name": call.name, "content": json.dumps(result)}
                 )
@@ -75,7 +81,7 @@ class CopilotService:
                 messages=messages,
             )
 
-        structured = self._parse_structured_answer(final_response.content)
+        structured = parse_structured_answer(final_response.content)
 
         db.add(
             AIMessage(
@@ -91,12 +97,3 @@ class CopilotService:
         await db.commit()
 
         return structured
-
-    @staticmethod
-    def _parse_structured_answer(content: str | None) -> StructuredAIAnswer:
-        if not content:
-            return StructuredAIAnswer(answer="")
-        try:
-            return StructuredAIAnswer.model_validate_json(content)
-        except (PydanticValidationError, ValueError):
-            return StructuredAIAnswer(answer=content)

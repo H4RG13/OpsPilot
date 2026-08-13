@@ -11,14 +11,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @dataclass(frozen=True)
+class ToolContext:
+    """Server-derived context injected into every tool call. Never accepted as an
+    LLM-supplied argument (spec Section 10) — organization_id and user_id come from
+    the authenticated request, not the model."""
+
+    organization_id: uuid.UUID
+    user_id: uuid.UUID
+    allow_writes: bool = False
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
-    """A read-only-by-default tool the Copilot may call. organization_id is always
-    injected by the caller, never accepted as an LLM-supplied argument (spec Section 10)."""
+    """A tool the Copilot may call. Read tools are safe by default; write tools
+    (requires_write_permission=True) are only offered/executed when the caller has
+    set ToolContext.allow_writes, and are always logged (spec Section 10)."""
 
     name: str
     description: str
     args_schema: type[BaseModel]
-    handler: Callable[[AsyncSession, uuid.UUID, BaseModel], Awaitable[Any]]
+    handler: Callable[[AsyncSession, ToolContext, BaseModel], Awaitable[Any]]
+    requires_write_permission: bool = False
 
     def to_provider_schema(self) -> dict:
         return {

@@ -108,4 +108,5 @@ async def send_message(
         user_id=context.user.id,
         conversation=conversation,
         user_message=data.content,
+        allow_tool_writes=data.allow_ai_actions,
     )
