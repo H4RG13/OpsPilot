@@ -18,7 +18,8 @@ supporting branches.
 | `release/*` | Stabilization branch cut from `develop` before a release.  | Staging → Prod     | No        |
 
 Supporting (short-lived) branches are created off `develop` and merged back
-into `develop` via pull request, then deleted.
+into `develop` via pull request. **Do not delete branches after merging** —
+see Section 9 for the retention policy.
 
 ## 2. Branch Naming Convention
 
@@ -145,11 +146,21 @@ same unmerged feature in progress):
   than creating a new one. Check `git branch -a` and open PRs first.
 - If the task is a genuinely new feature/phase/fix, create a new branch
   following the naming convention in Section 2.
-- Never reuse a branch that has already been merged and deleted — cut a new
-  one instead, even if the scope looks similar.
+- Never reuse a branch that has already been merged — cut a new one
+  instead, even if the scope looks similar.
 - When in doubt, prefer reuse for anything still in progress on `develop`;
   this keeps history efficient and avoids branch sprawl for what is
   effectively one unit of work.
+
+**Branch retention — do not delete merged branches.** Once a branch (local
+or remote) is merged into `develop`/`staging`/`main`, leave it in place
+rather than deleting it, either via `git branch -d`/`-D` or `git push
+origin --delete`. This applies to both local and remote copies. Keeping
+merged branches around preserves a browsable per-phase history on GitHub
+(useful for a portfolio project) and avoids accidentally destroying a
+branch someone still has local commits or a PR referencing. Only delete a
+branch when the user explicitly asks for that specific branch to be
+removed.
 
 ## 10. Solo/Portfolio Workflow Note
 

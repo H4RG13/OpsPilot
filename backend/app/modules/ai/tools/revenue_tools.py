@@ -1,10 +1,9 @@
-import uuid
 from datetime import date
 
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.ai.tools.base import ToolDefinition
+from app.modules.ai.tools.base import ToolContext, ToolDefinition
 from app.modules.analytics import service as analytics_service
 
 
@@ -13,10 +12,10 @@ class RevenueSummaryArgs(BaseModel):
     end_date: date
 
 
-async def _get_revenue_summary(db: AsyncSession, organization_id: uuid.UUID, args: BaseModel):
+async def _get_revenue_summary(db: AsyncSession, ctx: ToolContext, args: BaseModel):
     assert isinstance(args, RevenueSummaryArgs)
     return await analytics_service.get_revenue_summary(
-        db, organization_id, args.start_date, args.end_date
+        db, ctx.organization_id, args.start_date, args.end_date
     )
 
 
@@ -35,11 +34,11 @@ class CompareRevenueArgs(BaseModel):
     period_b_end: date
 
 
-async def _compare_revenue(db: AsyncSession, organization_id: uuid.UUID, args: BaseModel):
+async def _compare_revenue(db: AsyncSession, ctx: ToolContext, args: BaseModel):
     assert isinstance(args, CompareRevenueArgs)
     return await analytics_service.compare_revenue(
         db,
-        organization_id,
+        ctx.organization_id,
         args.period_a_start,
         args.period_a_end,
         args.period_b_start,
@@ -60,10 +59,10 @@ class OrderSummaryArgs(BaseModel):
     end_date: date
 
 
-async def _get_order_summary(db: AsyncSession, organization_id: uuid.UUID, args: BaseModel):
+async def _get_order_summary(db: AsyncSession, ctx: ToolContext, args: BaseModel):
     assert isinstance(args, OrderSummaryArgs)
     return await analytics_service.get_order_status_summary(
-        db, organization_id, args.start_date, args.end_date
+        db, ctx.organization_id, args.start_date, args.end_date
     )
 
 

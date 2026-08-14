@@ -111,7 +111,7 @@ keeps its ORM models in `models.py`.
 
 ---
 
-## Phase 5 — Copilot ✅ pushed, awaiting merge (`phase/5-copilot`)
+## Phase 5 — Copilot ✅ merged to `develop`
 
 - [x] `ai_conversations` / `ai_messages` tables + Alembic migration `0004`
 - [x] `POST /ai/conversations`, `GET /ai/conversations` (scoped to the
@@ -137,20 +137,55 @@ keeps its ORM models in `models.py`.
       router end-to-end (create → message → structured response) and
       cross-user/cross-tenant isolation
 
-**Known limitation — deliberate scope cut:** `create_task` and
-`list_open_tasks` from the spec's Section 10 tool list are **not**
-implemented — they depend on the Tasks module, which is Phase 6
-(Automation) per the roadmap. Building Tasks now just to satisfy the tool
-list would jump ahead of the phase ordering; the registry is structured so
-adding them in Phase 6 won't require touching the Copilot orchestration.
+**Resolved in Phase 6:** `create_task`/`list_open_tasks` were deferred here
+(see below) and have since been added without touching the Copilot
+orchestration, as planned.
 
-## Phase 6 — Automation `[ ]` not started
+---
 
-- [ ] Tasks module: CRUD, assign, priority, status
-- [ ] AI-proposed tasks (via `create_task` tool, requires explicit permission)
-- [ ] Celery: weekly business report generation job
-- [ ] `GET /reports`, `POST /reports/generate`
-- [ ] Tests: task permission boundaries, report job status transitions
+## Phase 6 — Automation ✅ pushed, awaiting merge (`phase/6-automation`)
+
+- [x] Tasks module: `GET/POST /tasks`, `PATCH /tasks/{id}`; reads open to
+      any org member, writes require `ADMIN`+ (same pattern as
+      customers/products/orders)
+- [x] Tool registry refactored to a `ToolContext` (organization_id,
+      user_id, allow_writes) so a write tool can know who's asking and
+      whether it's permitted — the seven Phase 5 read tools were updated
+      to the new signature, no behavior change
+- [x] `create_task` (write, `requires_write_permission=True`): excluded
+      from the tools offered to the model unless
+      `POST .../messages` sets `allow_ai_actions: true`; the registry
+      re-checks the permission at execution time too, not just at
+      schema-advertisement time. Logged via structured application log as
+      a stopgap for the Phase 8 `audit_logs` table.
+- [x] `list_open_tasks` (read, always available)
+- [x] Shared `parse_structured_answer()` extracted out of `CopilotService`
+      into `ai/parsing.py` so the weekly-report generator can reuse the
+      same structured-JSON contract instead of duplicating it
+- [x] `reports` table + `POST /reports/generate` (creates a `queued` row,
+      dispatches a Celery task) + `GET /reports` (paginated, tenant-scoped)
+- [x] Celery task computes a trailing-7-day revenue/order summary +
+      period-over-period comparison via the existing analytics service,
+      asks the AI Gateway for insights/recommendations, and stores
+      `status: completed` with the results — or `status: failed` +
+      `error_message` on any exception, with bounded retry (2 retries,
+      30s delay)
+- [x] Both Celery-adjacent side effects are behind injectable seams so
+      tests never touch a broker or a live LLM: `run_report_generation`
+      is a plain function taking `db`/`AIService` as parameters (the
+      Celery task is a thin `asyncio.run()` wrapper around it), and `POST
+      /reports/generate` depends on an overridable dispatcher function
+      rather than calling `.delay()` directly
+- [x] Alembic migrations `0005` (tasks) and `0006` (reports)
+- [x] 14 new tests (78 total): task CRUD/roles/isolation, create_task
+      permission gating (rejected without `allow_writes`, succeeds and
+      persists with it) and schema-level exclusion, list_open_tasks
+      filtering, report generation success/failure paths against a
+      scripted fake provider, reports router with a spy dispatcher
+
+**Known limitation:** no persisted audit log for AI-initiated writes yet
+(Phase 8); no `GET /reports/{id}` (matches spec Section 21's API table
+exactly — only list + generate are listed).
 
 ## Phase 7 — Imports `[ ]` not started
 
@@ -193,11 +228,12 @@ adding them in Phase 6 won't require touching the Copilot orchestration.
 | 2 — Core Data | ✅ Merged | `phase/2-core-data` (deleted) |
 | 3 — Analytics | ✅ Merged | `phase/3-analytics` (deleted) |
 | 4 — AI Gateway | ✅ Merged | `phase/4-ai-gateway` (deleted) |
-| 5 — Copilot | 🟡 Pushed, awaiting merge | `phase/5-copilot` |
-| 6–10 | ⬜ Not started | — |
+| 5 — Copilot | ✅ Merged | `phase/5-copilot` (deleted) |
+| 6 — Automation | 🟡 Pushed, awaiting merge | `phase/6-automation` |
+| 7–10 | ⬜ Not started | — |
 
-**Test count:** 64 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 78 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
-**Next action:** merge `phase/5-copilot` into `develop` on GitHub, then
-start Phase 6 — Automation (Tasks module — including the deferred
-`create_task`/`list_open_tasks` tools — Celery, weekly reports).
+**Next action:** merge `phase/6-automation` into `develop` on GitHub, then
+start Phase 7 — Imports (CSV upload, validation, mapping, background
+processing).

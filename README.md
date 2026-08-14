@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 5 — Copilot.** See `RULES.md` for the branching
+> Status: **Phase 6 — Automation.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,7 +114,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 5)
+## Known Limitations (Phase 6)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -169,17 +169,12 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
   schema, the raw text is returned as `answer` with empty lists rather
   than failing the request — the frontend never has to parse unpredictable
   free-form output.
-- Seven read-only tools are registered: `get_revenue_summary`,
+- Nine tools are registered, seven read-only (`get_revenue_summary`,
   `compare_revenue`, `get_order_summary`, `get_top_products`,
-  `get_customer_metrics`, `get_at_risk_customers`, `search_customers`.
-  Every tool's `organization_id` is injected by the server from the
-  authenticated context — it is never part of the tool's argument schema,
-  so the model has no way to request another tenant's data even if it
-  tried.
-- `create_task` and `list_open_tasks` are **not** implemented yet — they
-  depend on the Tasks module, which is Phase 6 (Automation) per the
-  roadmap. The tool registry is designed to have them added there without
-  touching the Copilot orchestration.
+  `get_customer_metrics`, `get_at_risk_customers`, `search_customers`,
+  `list_open_tasks`) plus one write tool (`create_task`). Every tool's
+  `organization_id` is injected by the server from the authenticated
+  context — never part of the tool's argument schema.
 - Only the user's question and the model's final answer are persisted to
   `ai_messages`; intermediate tool-call/tool-result turns are ephemeral
   within a single request. Full usage/cost/latency accounting for every
@@ -187,3 +182,35 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
   still lands in `ai_usage` regardless, via `AIService`.
 - Tested entirely against a scripted fake provider — no live LLM calls in
   the suite, consistent with every prior phase.
+- Tasks module is implemented: `GET/POST /tasks`, `PATCH /tasks/{id}`,
+  with the same read-open / `ADMIN`+-write pattern as other domain
+  modules. `create_task` is a write tool: it's excluded from the tools
+  offered to the model entirely unless the request sets
+  `allow_ai_actions: true` on `POST /ai/conversations/{id}/messages`
+  ("safe by default" — spec Section 10), and the registry double-checks
+  the permission again at execution time as defense-in-depth even if a
+  provider offered the tool anyway. There's no persisted audit log for
+  AI-initiated writes yet (that's the `audit_logs` table in Phase 8) — a
+  structured application log line is emitted as a stopgap.
+- Weekly report generation is implemented: `POST /reports/generate`
+  creates a `queued` `Report` row and enqueues a Celery task; `GET
+  /reports` lists them (paginated, tenant-scoped). The Celery task
+  computes the trailing-7-day revenue/order summary and a period-over-
+  period comparison via the existing analytics service, asks the AI
+  Gateway for insights/recommendations using the same structured-JSON
+  contract as the Copilot, and stores the result — or `status: failed`
+  with `error_message` if anything raises, with bounded retry (2 retries,
+  30s delay) at the Celery level.
+- The report-generation logic is a plain async function taking a db
+  session and an `AIService` as parameters, independent of Celery; the
+  Celery task is a thin sync wrapper that supplies both for real via
+  `asyncio.run()`. This is what makes it testable without a running
+  Redis broker or a live LLM — the test suite calls the function
+  directly with a scripted fake provider, the same pattern used
+  everywhere else. Likewise, `POST /reports/generate` depends on an
+  injectable dispatcher function (real Celery `.delay()` in production,
+  a spy in tests) rather than calling Celery directly, mirroring the
+  `get_ai_service` dependency-override pattern from Phase 4/5.
+- There is no `GET /reports/{id}` — only `GET /reports` (list) and `POST
+  /reports/generate`, matching the spec's Section 21 API table exactly.
+  Polling a specific report's status means checking the list.

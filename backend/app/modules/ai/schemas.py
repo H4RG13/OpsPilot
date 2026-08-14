@@ -73,6 +73,10 @@ class ConversationResponse(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
+    allow_ai_actions: bool = Field(
+        default=False,
+        description="If true, the Copilot may use write tools (e.g. create_task) for this message.",
+    )
 
 
 class MessageResponse(BaseModel):
