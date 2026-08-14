@@ -12,6 +12,7 @@ from app.core.database import Base
 from app.modules.ai.models import AIConversation, AIMessage, AIUsage  # noqa: F401
 from app.modules.auth.models import RefreshToken  # noqa: F401
 from app.modules.customers.models import Customer  # noqa: F401
+from app.modules.imports.models import ImportJob  # noqa: F401
 from app.modules.orders.models import Order, OrderItem  # noqa: F401
 from app.modules.organizations.models import Organization, OrganizationMember  # noqa: F401
 from app.modules.products.models import Product  # noqa: F401
