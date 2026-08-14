@@ -236,7 +236,7 @@ text is stored inline in the `import_jobs` row rather than object storage
 
 ---
 
-## Phase 8 — Quality ✅ pushed, awaiting merge (`phase/8-quality`)
+## Phase 8 — Quality ✅ merged to `develop`
 
 - [x] Rate limiting: Redis fixed-window counter behind a `RateLimiter`
       protocol, applied to `POST /ai/conversations/{id}/messages`
@@ -292,12 +292,64 @@ narrow, justified set rather than blanket instrumentation); no MFA/
 password-reset flow (not in MVP scope); no automated dependency/
 vulnerability scanning yet (that's more of a Phase 9 CI concern).
 
-## Phase 9 — Deployment `[ ]` not started
+---
 
-- [ ] Production Docker build
-- [ ] GitHub Actions CI (lint/test/build)
-- [ ] Environment/secrets handling for a real deployment target
-- [ ] Basic monitoring/observability
+## Phase 9 — Deployment ✅ pushed, awaiting merge (`phase/9-deployment`)
+
+No hosting target has been chosen yet, so this phase covers everything
+short of an actual live deployment — see README's "Production
+Deployment" section for the full writeup.
+
+- [x] GitHub Actions CI (`.github/workflows/ci.yml`): backend job (ruff +
+      pytest, no service containers needed — the suite runs entirely
+      against in-memory SQLite + injectable fakes) and frontend job
+      (ESLint + `tsc` type-check + Vite build)
+- [x] `backend/Dockerfile.prod`: multi-stage, no dev/test deps, non-root
+      user, no `--reload`, configurable `WEB_CONCURRENCY`, `HEALTHCHECK`
+      against `/health`
+- [x] `frontend/Dockerfile.prod`: multi-stage, static Vite bundle served
+      by `nginx:alpine` (no Node runtime in the final image), proxying
+      `/api/` to the backend so the build can use a relative
+      `VITE_API_BASE_URL`, with SPA-route fallback to `index.html`
+- [x] `docker-compose.prod.yml`: both prod images + Postgres + Redis, no
+      source bind-mounts, `APP_ENV=production` (activates the Phase 1
+      `SECRET_KEY` strength guard and the HSTS header)
+- [x] Environment/secrets documentation in README, generic enough for
+      whichever host gets picked later (Render/Fly.io/Railway/a bare VM
+      all just need `DATABASE_URL`/`REDIS_URL` pointed at their own
+      managed services — `backend`/`worker`/`frontend` don't change)
+- [x] Monitoring baseline: `/health` liveness check (already existed),
+      `X-Request-Id` on every response, logs tagged with it via the
+      existing `ContextVar`. No external APM/error-tracking wired up —
+      documented as the natural next step once there's a real target.
+
+**Bug caught by actually building and running the Docker images, not
+just writing Dockerfiles:** `Page[Customer]` (and five more `Page[<ORM
+model>]` return-type annotations across the other list-endpoint service
+functions) crashed the app on import in a clean Python 3.12 container
+with `PydanticSchemaGenerationError` — Python evaluates a function's
+return-type annotation *eagerly* at definition time unless the module
+opts into deferred evaluation, so `Page[Customer]` literally invoked
+Pydantic's generic-model machinery against a SQLAlchemy ORM class, which
+Pydantic can't build a schema for. This had been silently "working" in
+the long-lived local dev venv (Python 3.14) purely by accident of import-
+order/caching — it was never guaranteed to work anywhere, and could have
+crashed on any fresh boot in any environment, not just Docker. Fixed by
+adding `from __future__ import annotations` to the six affected
+`service.py` files, deferring all their annotations to strings. This is
+exactly the kind of bug a from-scratch container build with a pinned
+Python version catches and a long-lived dev environment hides — the same
+"don't just write it, build it and run it" discipline applied to every
+backend phase's tests, applied here to infrastructure instead: an
+unverified Dockerfile is a claim, not a fact, and this one would have
+crashed on its very first boot anywhere outside this dev machine.
+
+Also found while documenting: `npm run test` (Vitest) exits non-zero with
+"No test files found" — the frontend has no test files yet, since every
+phase through Phase 8 stayed backend-focused per the spec's own framing.
+README now says so honestly instead of documenting a command that
+doesn't actually work; CI runs `lint` + `build` for the frontend, not
+`test`.
 
 ## Phase 10 — Advanced `[ ]` not started
 
@@ -321,14 +373,21 @@ vulnerability scanning yet (that's more of a Phase 9 CI concern).
 | 5 — Copilot | ✅ Merged | `phase/5-copilot` (deleted) |
 | 6 — Automation | ✅ Merged | `phase/6-automation` |
 | 7 — Imports | ✅ Merged | `phase/7-imports` |
-| 8 — Quality | 🟡 Pushed, awaiting merge | `phase/8-quality` |
-| 9–10 | ⬜ Not started | — |
+| 8 — Quality | ✅ Merged | `phase/8-quality` |
+| 9 — Deployment | 🟡 Pushed, awaiting merge | `phase/9-deployment` |
+| 10 | ⬜ Not started (optional/advanced) | — |
 
 **Test count:** 105 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
 **Branch retention:** as of the Phase 6 → 7 transition, merged branches are
 kept (not deleted) per the updated policy in `RULES.md` §9 — branches for
 phases 0–5 above were deleted under the old policy before this changed.
+
+**Next action:** merge `phase/9-deployment` into `develop` on GitHub. The
+core MVP (Phases 0–9) is then functionally complete per the spec's
+Definition of Done (Section 28) — Phase 10 (pgvector/RAG, additional AI
+providers, per-org model policy) is explicitly optional/advanced scope,
+not required for the MVP.
 
 **Next action:** merge `phase/8-quality` into `develop` on GitHub, then
 start Phase 9 — Deployment (production Docker build, CI, secrets, basic

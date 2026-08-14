@@ -1,0 +1,43 @@
+# Multi-stage production build: no dev dependencies, no test files, non-root
+# user, no --reload. The plain Dockerfile (dev) mounts source and installs
+# dev deps for hot-reload local development instead.
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+COPY pyproject.toml ./
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./
+
+RUN pip install --no-cache-dir --prefix=/install .
+
+
+FROM python:3.12-slim AS runtime
+
+RUN groupadd --system app && useradd --system --gid app --create-home app
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/usr/local/bin:$PATH" \
+    WEB_CONCURRENCY=2
+
+COPY --from=builder /install /usr/local
+COPY --from=builder /build/app ./app
+COPY --from=builder /build/migrations ./migrations
+COPY --from=builder /build/alembic.ini ./
+
+USER app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY}"]
