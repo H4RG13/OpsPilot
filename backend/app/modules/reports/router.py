@@ -4,7 +4,9 @@ from collections.abc import Callable
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.modules.auth.dependencies import AuthContext, get_current_context
 from app.modules.reports import service
 from app.modules.reports.dependencies import get_report_dispatcher
@@ -25,7 +27,18 @@ async def list_reports(
     return await service.list_reports(db, context.organization_id, params)
 
 
-@router.post("/generate", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/generate",
+    response_model=ReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(
+            rate_limit(
+                "report_generate", settings.ai_report_rate_limit_per_hour, window_seconds=3600
+            )
+        )
+    ],
+)
 async def generate_report(
     context: AuthContext = Depends(get_current_context),
     db: AsyncSession = Depends(get_db),

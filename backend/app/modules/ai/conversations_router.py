@@ -5,7 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.modules.ai.copilot_service import CopilotService
 from app.modules.ai.dependencies import get_ai_service
 from app.modules.ai.models import AIConversation
@@ -90,7 +92,17 @@ async def list_conversations(
     return Page(items=items, total=total, page=params.page, page_size=params.page_size)
 
 
-@router.post("/{conversation_id}/messages", response_model=StructuredAIAnswer)
+@router.post(
+    "/{conversation_id}/messages",
+    response_model=StructuredAIAnswer,
+    dependencies=[
+        Depends(
+            rate_limit(
+                "ai_chat", settings.ai_chat_rate_limit_per_minute, window_seconds=60
+            )
+        )
+    ],
+)
 async def send_message(
     conversation_id: uuid.UUID,
     data: MessageCreate,

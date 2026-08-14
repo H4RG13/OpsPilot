@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
+    ai_chat_rate_limit_per_minute: int = 20
+    ai_report_rate_limit_per_hour: int = 5
+
     frontend_url: str = "http://localhost:5173"
 
     @property

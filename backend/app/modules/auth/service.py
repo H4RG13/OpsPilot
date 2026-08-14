@@ -14,12 +14,18 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.modules.audit import service as audit_service
 from app.modules.auth.models import RefreshToken
 from app.modules.auth.schemas import RegisterRequest, TokenResponse
 from app.modules.organizations.models import Organization, OrganizationMember
 from app.modules.users.models import User
 from app.shared.exceptions import AuthenticationError, ConflictError
 from app.shared.permissions import Role
+
+# Precomputed bcrypt hash of a fixed dummy password, verified against on a
+# missing-user login attempt so the response takes the same time either way
+# and doesn't leak whether an email is registered via a timing side-channel.
+_DUMMY_PASSWORD_HASH = hash_password("dummy-password-for-timing-safety")
 
 
 async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, Organization, Role]:
@@ -45,14 +51,31 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, Organ
             "An account with this email already exists.", code="EMAIL_ALREADY_REGISTERED"
         ) from exc
 
+    await audit_service.log_action(
+        db,
+        organization_id=organization.id,
+        user_id=user.id,
+        action="auth.register",
+        entity_type="user",
+        entity_id=user.id,
+    )
+
     return user, organization, Role.OWNER
 
 
 async def authenticate(db: AsyncSession, email: str, password: str) -> User:
     stmt = select(User).where(User.email == email.lower())
     user = (await db.execute(stmt)).scalar_one_or_none()
-    if user is None or not verify_password(password, user.password_hash):
+
+    if user is None:
+        # Still run a bcrypt comparison so a nonexistent email doesn't
+        # resolve measurably faster than a wrong password for a real one.
+        verify_password(password, _DUMMY_PASSWORD_HASH)
         raise AuthenticationError("Invalid email or password.", code="INVALID_CREDENTIALS")
+
+    if not verify_password(password, user.password_hash):
+        raise AuthenticationError("Invalid email or password.", code="INVALID_CREDENTIALS")
+
     return user
 
 

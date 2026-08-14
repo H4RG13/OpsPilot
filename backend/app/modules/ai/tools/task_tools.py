@@ -1,4 +1,3 @@
-import logging
 from datetime import date
 
 from pydantic import BaseModel, Field
@@ -6,9 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.ai.tools.base import ToolContext, ToolDefinition
+from app.modules.audit import service as audit_service
 from app.modules.tasks.models import Task, TaskPriority, TaskStatus
-
-logger = logging.getLogger("app.ai.tools.task")
 
 
 class CreateTaskArgs(BaseModel):
@@ -36,13 +34,14 @@ async def _create_task(db: AsyncSession, ctx: ToolContext, args: BaseModel):
     await db.commit()
     await db.refresh(task)
 
-    # Stopgap for the persisted audit_logs table landing in Phase 8 — this
-    # write action is still logged, per spec Section 10.
-    logger.info(
-        "ai_task_created organization_id=%s user_id=%s task_id=%s",
-        ctx.organization_id,
-        ctx.user_id,
-        task.id,
+    await audit_service.log_action(
+        db,
+        organization_id=ctx.organization_id,
+        user_id=ctx.user_id,
+        action="ai.task_created",
+        entity_type="task",
+        entity_id=task.id,
+        metadata={"title": task.title},
     )
 
     return {"created": True, "task_id": task.id, "title": task.title}

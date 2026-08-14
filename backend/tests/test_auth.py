@@ -49,6 +49,19 @@ async def test_login_with_invalid_password(client: AsyncClient):
     assert response.json()["error"]["code"] == "INVALID_CREDENTIALS"
 
 
+async def test_login_with_unknown_email_returns_same_error_as_wrong_password(client: AsyncClient):
+    # Same code/message as a wrong password for a real account — an unknown
+    # email must not be distinguishable via the error response (no user
+    # enumeration), and authenticate() still runs a dummy bcrypt comparison
+    # so the two cases don't differ in timing either.
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "nobody@acme.example", "password": "whatever123"},
+    )
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "INVALID_CREDENTIALS"
+
+
 async def test_me_requires_authentication(client: AsyncClient):
     response = await client.get("/api/v1/me")
     assert response.status_code == 401

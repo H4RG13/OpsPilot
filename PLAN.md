@@ -189,7 +189,7 @@ exactly — only list + generate are listed).
 
 ---
 
-## Phase 7 — Imports ✅ pushed, awaiting merge (`phase/7-imports`)
+## Phase 7 — Imports ✅ merged to `develop`
 
 - [x] `POST /imports/csv` (multipart, `import_type` of `customers` or
       `products`, `ADMIN`+ only) + `GET /imports/{id}`
@@ -234,12 +234,63 @@ match schema field names exactly, no fuzzy column-mapping UI; raw CSV
 text is stored inline in the `import_jobs` row rather than object storage
 (spec explicitly calls that out as "optional later," Section 4).
 
-## Phase 8 — Quality `[ ]` not started
+---
 
-- [ ] Rate limiting on AI endpoints
-- [ ] Audit log (`audit_logs` table) for security-sensitive + AI write actions
-- [ ] Broader security hardening pass
-- [ ] Expanded test coverage across all modules
+## Phase 8 — Quality ✅ pushed, awaiting merge (`phase/8-quality`)
+
+- [x] Rate limiting: Redis fixed-window counter behind a `RateLimiter`
+      protocol, applied to `POST /ai/conversations/{id}/messages`
+      (20/min) and `POST /reports/generate` (5/hour); injectable like
+      every other external dependency (`get_ai_service`,
+      `get_report_dispatcher`) so the test suite never touches live Redis
+- [x] `audit_logs` table + `GET /audit-logs` (paginated, `ADMIN`+ only —
+      added beyond spec Section 21's table since an unqueryable audit log
+      has no operational value). Four actions logged, each chosen for
+      being genuinely security-sensitive or spec-mandated rather than
+      instrumenting every write: `auth.register`, `auth.login`,
+      `customer.deleted` (the only hard-delete endpoint in the API), and
+      `ai.task_created` (replacing the Phase 6 stopgap logger call with a
+      real persisted record)
+- [x] Consistent error envelope everywhere: FastAPI's default
+      `{"detail": [...]}` for validation errors reformatted into
+      `{"error": {...}}`; a catch-all handler ensures truly unexpected
+      exceptions also return that envelope (`INTERNAL_SERVER_ERROR`, no
+      leaked message/traceback) while still logging the real error
+      server-side
+- [x] Timing-safe login: a dummy bcrypt comparison runs even when the
+      submitted email doesn't exist, so response time doesn't leak which
+      emails are registered
+- [x] Security headers (`X-Content-Type-Options`, `X-Frame-Options`,
+      `Referrer-Policy`, `Strict-Transport-Security` in production) via a
+      small ASGI middleware
+- [x] 16 new tests (105 total): rate limiter logic + 429s on both
+      endpoints, audit entries for all four actions (incl. metadata),
+      audit-log role/tenant scoping, both reformatted error envelopes,
+      security headers
+
+**Bugs caught by actually running the tests, not just writing them:**
+(1) `RequestValidationError.errors()` can contain `Decimal` objects
+(Pydantic's `gt` constraint context) that plain `json.dumps` chokes on —
+the validation-error handler crashed on exactly the input it exists to
+handle, fixed with `jsonable_encoder`. (2) The original security-headers/
+request-ID middleware used `@app.middleware("http")`, which wraps the app
+in Starlette's `BaseHTTPMiddleware` — that runs the downstream app in its
+own `anyio` task group, which doesn't reliably propagate exceptions to an
+app-level catch-all `Exception` handler (they surfaced as an
+`ExceptionGroup`, silently defeating the hardening this phase was
+adding). Replaced with a single pure-ASGI middleware class. Also found:
+`httpx.ASGITransport` re-raises exceptions into the test after the
+response is already sent (mirroring Starlette's `ServerErrorMiddleware`,
+which does this deliberately so an ASGI server can still log them) — the
+one test verifying the 500-envelope path needs `raise_app_exceptions=
+False` on a dedicated client; every other test intentionally keeps the
+default so real bugs still surface as loud tracebacks.
+
+**Known limitations, documented rather than silently skipped:** audit
+logging covers four actions, not every write in the app (a deliberately
+narrow, justified set rather than blanket instrumentation); no MFA/
+password-reset flow (not in MVP scope); no automated dependency/
+vulnerability scanning yet (that's more of a Phase 9 CI concern).
 
 ## Phase 9 — Deployment `[ ]` not started
 
@@ -269,15 +320,16 @@ text is stored inline in the `import_jobs` row rather than object storage
 | 4 — AI Gateway | ✅ Merged | `phase/4-ai-gateway` (deleted) |
 | 5 — Copilot | ✅ Merged | `phase/5-copilot` (deleted) |
 | 6 — Automation | ✅ Merged | `phase/6-automation` |
-| 7 — Imports | 🟡 Pushed, awaiting merge | `phase/7-imports` |
-| 8–10 | ⬜ Not started | — |
+| 7 — Imports | ✅ Merged | `phase/7-imports` |
+| 8 — Quality | 🟡 Pushed, awaiting merge | `phase/8-quality` |
+| 9–10 | ⬜ Not started | — |
 
-**Test count:** 89 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 105 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
 **Branch retention:** as of the Phase 6 → 7 transition, merged branches are
 kept (not deleted) per the updated policy in `RULES.md` §9 — branches for
 phases 0–5 above were deleted under the old policy before this changed.
 
-**Next action:** merge `phase/7-imports` into `develop` on GitHub, then
-start Phase 8 — Quality (rate limiting, audit logs, security hardening,
-expanded test coverage).
+**Next action:** merge `phase/8-quality` into `develop` on GitHub, then
+start Phase 9 — Deployment (production Docker build, CI, secrets, basic
+monitoring).

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.modules.audit import service as audit_service
 from app.modules.auth.dependencies import AuthContext, get_current_context, require_role
 from app.modules.customers import service
 from app.modules.customers.models import CustomerStatus
@@ -67,3 +68,11 @@ async def delete_customer(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     await service.delete_customer(db, context.organization_id, customer_id)
+    await audit_service.log_action(
+        db,
+        organization_id=context.organization_id,
+        user_id=context.user.id,
+        action="customer.deleted",
+        entity_type="customer",
+        entity_id=customer_id,
+    )

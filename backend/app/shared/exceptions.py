@@ -1,5 +1,13 @@
+import logging
+
 from fastapi import Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+from app.core.logging import request_id_ctx
+
+logger = logging.getLogger("app.errors")
 
 
 class AppError(Exception):
@@ -51,13 +59,51 @@ class UpstreamProviderError(AppError):
 
 
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-    request_id = getattr(request.state, "request_id", "-")
+    request_id = request_id_ctx.get()
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": {
                 "code": exc.code,
                 "message": exc.message,
+                "request_id": request_id,
+            }
+        },
+    )
+
+
+async def request_validation_error_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Reformats FastAPI's default {"detail": [...]} shape into the app's
+    standard error envelope, so every error response — ours or the
+    framework's — has the same shape (spec: "use consistent error responses")."""
+    request_id = request_id_ctx.get()
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Request validation failed.",
+                "details": jsonable_encoder(exc.errors()),
+                "request_id": request_id,
+            }
+        },
+    )
+
+
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort handler: never leak a stack trace or internal exception
+    message to the client (spec: "Never return stack traces to production
+    clients"). The real error is logged server-side with its traceback."""
+    request_id = request_id_ctx.get()
+    logger.exception("Unhandled exception (request_id=%s)", request_id)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected error occurred.",
                 "request_id": request_id,
             }
         },
