@@ -38,8 +38,10 @@ Format: `<type>/<phase-or-scope>-<short-description>`
 
 Rules:
 - All lowercase, hyphen-separated, no spaces or underscores.
-- Always prefix with the phase number when the work maps to a spec phase
-  (see `AI_Operations_Copilot_Project_Specification`, Section 27).
+- Always prefix with the phase number when the work maps to a spec phase.
+  Phases 0–10 map to `docs/PROJECT_SPECIFICATION.md` Section 27 (backend);
+  phases 11+ map to the "Frontend Phases" list in `PLAN.md` instead, since
+  the master spec has no frontend phase breakdown of its own.
 - Keep descriptions short (3–5 words) and specific to the change.
 
 ## 3. Branch Flow
