@@ -11,6 +11,7 @@ from app.modules.analytics.router import router as analytics_router
 from app.modules.auth.router import me_router
 from app.modules.auth.router import router as auth_router
 from app.modules.customers.router import router as customers_router
+from app.modules.imports.router import router as imports_router
 from app.modules.orders.router import router as orders_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.products.router import router as products_router
@@ -44,6 +45,7 @@ app.include_router(ai_usage_router, prefix=API_V1_PREFIX)
 app.include_router(ai_conversations_router, prefix=API_V1_PREFIX)
 app.include_router(tasks_router, prefix=API_V1_PREFIX)
 app.include_router(reports_router, prefix=API_V1_PREFIX)
+app.include_router(imports_router, prefix=API_V1_PREFIX)
 
 
 @app.middleware("http")

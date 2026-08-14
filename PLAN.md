@@ -143,7 +143,7 @@ orchestration, as planned.
 
 ---
 
-## Phase 6 — Automation ✅ pushed, awaiting merge (`phase/6-automation`)
+## Phase 6 — Automation ✅ merged to `develop`
 
 - [x] Tasks module: `GET/POST /tasks`, `PATCH /tasks/{id}`; reads open to
       any org member, writes require `ADMIN`+ (same pattern as
@@ -187,13 +187,52 @@ orchestration, as planned.
 (Phase 8); no `GET /reports/{id}` (matches spec Section 21's API table
 exactly — only list + generate are listed).
 
-## Phase 7 — Imports `[ ]` not started
+---
 
-- [ ] `POST /imports/csv`, `GET /imports/{id}`
-- [ ] CSV validation pipeline: type/size → parse → column mapping → row
-      validation → preview errors → confirm → batch insert/upsert
-- [ ] Background processing via Celery, job status tracking
-- [ ] Tests: valid/invalid/duplicate/malformed CSV data
+## Phase 7 — Imports ✅ pushed, awaiting merge (`phase/7-imports`)
+
+- [x] `POST /imports/csv` (multipart, `import_type` of `customers` or
+      `products`, `ADMIN`+ only) + `GET /imports/{id}`
+- [x] Row validation reuses `CustomerCreate`/`ProductCreate` directly —
+      import rules can't drift from the regular create-endpoint rules
+- [x] Upsert by `email` (customers) / `name` (products), scoped to the
+      organization, so re-running a CSV updates rather than duplicates
+- [x] Per-row `SAVEPOINT` isolation: one bad row rolls back only its own
+      write, not the job or any already-imported rows; up to 50 per-row
+      `{row, message}` errors are reported; a CSV missing a required
+      column fails the whole job immediately
+- [x] Background processing via Celery (`ImportJob` starts `queued`,
+      Celery task processes it), mirroring the Phase 6 reports pattern
+      exactly: `run_import_job` is a plain function taking `db` directly
+      (Celery task is a thin `asyncio.run()` wrapper), and `POST
+      /imports/csv` depends on an injectable dispatcher for testability
+- [x] File type (`.csv` only) and size (5MB) validation
+- [x] Alembic migration `0007`
+- [x] 11 new tests (89 total): valid import for both types, an invalid
+      row skipped without breaking the rest of the job, duplicate-email
+      upsert, malformed-CSV whole-job failure, file validation,
+      role/tenant isolation
+
+**Bug caught by actually running the tests, not just writing them:** the
+first draft called `db.rollback()` on a per-row validation failure — a
+full session rollback, which would have silently wiped out every
+already-imported row earlier in the same job (and risked tripping async
+SQLAlchemy's lazy-load restrictions on the now-expired `job` object, since
+attribute access on an expired instance requires an implicit reload that
+async sessions can't do outside an explicit `await`). Replaced with a
+`SAVEPOINT` (`db.begin_nested()`) per row, which only undoes that row's
+own pending write.
+
+**Deliberate scope cuts, documented in README:** no orders/sales CSV
+import (needs cross-referencing existing customers/products by natural
+key — real complexity for uncertain demo value); no separate
+preview/confirm step from spec Section 17 (validation and import happen
+together in one Celery run, with the per-row error report as the
+"preview" — a true two-step flow would need server-side staging of parsed
+rows, not otherwise needed anywhere in this codebase); CSV headers must
+match schema field names exactly, no fuzzy column-mapping UI; raw CSV
+text is stored inline in the `import_jobs` row rather than object storage
+(spec explicitly calls that out as "optional later," Section 4).
 
 ## Phase 8 — Quality `[ ]` not started
 
@@ -229,11 +268,16 @@ exactly — only list + generate are listed).
 | 3 — Analytics | ✅ Merged | `phase/3-analytics` (deleted) |
 | 4 — AI Gateway | ✅ Merged | `phase/4-ai-gateway` (deleted) |
 | 5 — Copilot | ✅ Merged | `phase/5-copilot` (deleted) |
-| 6 — Automation | 🟡 Pushed, awaiting merge | `phase/6-automation` |
-| 7–10 | ⬜ Not started | — |
+| 6 — Automation | ✅ Merged | `phase/6-automation` |
+| 7 — Imports | 🟡 Pushed, awaiting merge | `phase/7-imports` |
+| 8–10 | ⬜ Not started | — |
 
-**Test count:** 78 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 89 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
-**Next action:** merge `phase/6-automation` into `develop` on GitHub, then
-start Phase 7 — Imports (CSV upload, validation, mapping, background
-processing).
+**Branch retention:** as of the Phase 6 → 7 transition, merged branches are
+kept (not deleted) per the updated policy in `RULES.md` §9 — branches for
+phases 0–5 above were deleted under the old policy before this changed.
+
+**Next action:** merge `phase/7-imports` into `develop` on GitHub, then
+start Phase 8 — Quality (rate limiting, audit logs, security hardening,
+expanded test coverage).

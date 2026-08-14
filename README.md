@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 6 — Automation.** See `RULES.md` for the branching
+> Status: **Phase 7 — Imports.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,7 +114,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 6)
+## Known Limitations (Phase 7)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -214,3 +214,41 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
 - There is no `GET /reports/{id}` — only `GET /reports` (list) and `POST
   /reports/generate`, matching the spec's Section 21 API table exactly.
   Polling a specific report's status means checking the list.
+- CSV import is implemented: `POST /imports/csv` (multipart upload,
+  `import_type` of `customers` or `products`, `ADMIN`+ only) creates a
+  `queued` `ImportJob` and dispatches a Celery task; `GET
+  /imports/{id}` returns status/counts/errors. Row validation reuses the
+  existing `CustomerCreate`/`ProductCreate` schemas directly rather than
+  a separate import-specific schema, so import rules never drift from
+  the regular create-endpoint rules.
+- Rows upsert rather than insert blindly — by `email` for customers, by
+  `name` for products (both scoped to the organization) — so re-running
+  the same CSV updates existing records instead of duplicating them.
+  Each row runs inside its own `SAVEPOINT`: a bad row rolls back only
+  that row's write, not the whole job or any already-imported rows. The
+  response reports `total_rows`/`imported_rows`/`failed_rows` plus up to
+  50 per-row `{row, message}` errors; a CSV missing a required column
+  fails the whole job immediately rather than reporting 200 identical
+  per-row errors.
+- **Deliberate scope cuts, both disclosed rather than silently skipped:**
+  (1) CSV import only supports `customers` and `products` — not
+  orders/sales, which the spec also mentions. Importing orders would need
+  matching existing customers/products by a natural key and grouping
+  CSV rows into orders with line items, real added complexity for
+  uncertain portfolio-demo value; this can be added the same way if
+  needed later. (2) There is no separate "preview → confirm" step from
+  spec Section 17 — validation and import happen together in one Celery
+  run, with the full per-row error report as the "preview." A true
+  preview/confirm flow would need to stage parsed rows server-side
+  between the two requests, which isn't otherwise needed anywhere in
+  this codebase. (3) Column headers must match the target schema's field
+  names exactly (e.g. `name,email,status,lifetime_value` for customers)
+  — there's no fuzzy/interactive column-mapping UI.
+- The raw CSV text is stored inline in the `import_jobs` row rather than
+  external object storage, since the spec explicitly calls out object
+  storage as an "optional later" item (Section 4) and these are small,
+  demo-scale files.
+- 11 new tests (89 total): valid import for both types, an invalid row
+  skipped without breaking the rest of the job, duplicate-email upsert,
+  a malformed CSV (missing required columns) failing the whole job,
+  file-type/size validation, and router-level role/tenant isolation.
