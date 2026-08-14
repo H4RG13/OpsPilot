@@ -89,8 +89,90 @@ pytest
 # Frontend
 cd frontend
 npm install
-npm run test
+npm run lint    # ESLint
+npm run build   # tsc type-check + production build
 ```
+
+There are no frontend test files yet — `npm run test` (Vitest) exits
+non-zero with "No test files found" until the frontend actually has
+components with logic worth testing. Per the spec's "backend-focused"
+framing (Section 2), every phase so far has stayed on the backend; the
+frontend is still the Phase 0 scaffold plus a placeholder dashboard. CI
+therefore runs `lint` + `build` for the frontend, not `test` — that will
+change once real UI work adds something meaningful to assert against.
+
+## Continuous Integration
+
+Every push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+- **Backend job:** `ruff check` then `pytest` — no service containers
+  needed, since the whole suite runs against an in-memory SQLite database
+  and injectable fakes for Redis/Celery/the LLM provider (see Known
+  Limitations across every phase above for why that's true by design).
+- **Frontend job:** `npm run lint` (ESLint) then `npm run build`
+  (type-check + production build).
+
+## Production Deployment
+
+There's no live deployment of this project yet (no hosting target has
+been chosen), but everything short of that is in place:
+
+**Production Docker images.** Each service has a hardened, multi-stage
+`Dockerfile.prod` alongside its dev `Dockerfile`:
+
+- `backend/Dockerfile.prod` — builds the package without dev/test
+  dependencies, runs as a non-root user, no `--reload`, configurable
+  worker count via `WEB_CONCURRENCY` (default 2), with a `HEALTHCHECK`
+  against `/health`.
+- `frontend/Dockerfile.prod` — builds the static Vite bundle, then serves
+  it from `nginx:alpine` (no Node runtime in the final image). nginx
+  proxies `/api/` to the backend service so the frontend can be built
+  with a relative `VITE_API_BASE_URL` (e.g. `/api/v1`) instead of a
+  hardcoded backend hostname, and falls back to `index.html` for
+  client-side routes.
+
+```bash
+# Build and smoke-test either image standalone:
+docker build -f backend/Dockerfile.prod -t opspilot-backend backend/
+docker build -f frontend/Dockerfile.prod -t opspilot-frontend frontend/
+```
+
+**`docker-compose.prod.yml`** wires both together with Postgres and
+Redis for a simple single-host deployment — no source bind-mounts, no
+dev dependencies, `APP_ENV=production` (which activates the
+`SECRET_KEY` strength check in `core/config.py` and the
+`Strict-Transport-Security` header):
+
+```bash
+cp .env.example .env
+# fill in a strong SECRET_KEY (>=32 chars), GROQ_API_KEY, and any other
+# real secrets — .env is gitignored and must never be committed
+
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+To use a managed Postgres/Redis instead of the bundled containers (the
+usual setup on a real hosting provider), just point `DATABASE_URL`/
+`REDIS_URL` in `.env` at them and remove the `db`/`redis` services from
+the compose file — `backend`/`worker`/`frontend` don't change either way.
+
+**Secrets.** Never committed; `.env.example` documents every variable
+with safe placeholder values. In production, `SECRET_KEY` must be a
+real random value (`python -c "import secrets; print(secrets.token_urlsafe(32))"`)
+or the app refuses to start (Phase 1's production guard). Whatever host
+you deploy to (Render, Fly.io, Railway, a bare VM, etc.), its own secrets
+manager or environment-variable UI is where these values belong — not in
+version control.
+
+**Monitoring.** `GET /health` is the liveness/readiness check consumed by
+both the backend's own `HEALTHCHECK` and (if fronted by a load balancer)
+the platform's health probe. Every response carries an `X-Request-Id`
+header (generated per-request, or echoed back if the client supplied
+one), and every log line is tagged with it via a `ContextVar` — grepping
+one request ID across backend logs reconstructs its full request
+lifecycle. There's no external APM/metrics export (e.g. Prometheus,
+Sentry) wired up yet; that would be the natural next step once there's
+an actual deployment target to point it at.
 
 ## Multi-Tenancy & Security
 
