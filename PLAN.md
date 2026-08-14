@@ -361,6 +361,109 @@ doesn't actually work; CI runs `lint` + `build` for the frontend, not
 
 ---
 
+# Frontend Phases
+
+Phases 0–10 above map to `docs/PROJECT_SPECIFICATION.md` Section 27, which
+is entirely backend — the spec explicitly frames the frontend as
+"support the backend rather than dominate the project" (Section 2) and
+never gives it its own phase breakdown. Through Phase 9 the frontend is
+still exactly the Phase 0 scaffold: routing, Tailwind, TanStack Query
+wiring, and one placeholder dashboard page — no real screens exist yet.
+These phases build the actual UI, numbered as a continuation (11+) so
+they're unambiguous in branch names (`phase/11-...`) without colliding
+with the backend's 0–10. Each targets a concrete spec section:
+
+## Phase 11 — Frontend Auth & Shell `[ ]` not started
+
+- [ ] Login / register pages wired to `POST /auth/login` /
+      `POST /auth/register`
+- [ ] Token storage + axios interceptor for silent refresh via
+      `POST /auth/refresh`; logout clears tokens and calls
+      `POST /auth/logout`
+- [ ] Protected route wrapper (redirect to login when unauthenticated)
+- [ ] App shell: nav/sidebar, header showing current org + role (from
+      `GET /me`), logout action
+- [ ] Loading/error states for the auth flow itself
+
+## Phase 12 — Frontend Dashboard `[ ]` not started
+
+Spec Section 15.
+
+- [ ] KPI cards: revenue, orders, customers, average order value
+      (`GET /analytics/overview`)
+- [ ] Revenue trend chart with date-range filter (`GET /analytics/revenue`,
+      Recharts)
+- [ ] Top products table/chart (`GET /analytics/products`)
+- [ ] Customer activity + at-risk count (`GET /analytics/customers`)
+- [ ] Recent orders and recent tasks widgets
+- [ ] Loading, empty, error, and permission states for every widget
+      (explicitly required by spec Section 15)
+
+## Phase 13 — Frontend Customers & Products `[ ]` not started
+
+- [ ] Customer list: search, status filter, pagination
+      (`GET /customers`)
+- [ ] Customer create/edit forms (`ADMIN`+ only — hide/disable actions
+      for `MEMBER`s per the role the backend already enforces)
+- [ ] Customer delete with confirmation
+- [ ] Product list: category/active filters, pagination
+      (`GET /products`)
+- [ ] Product create/edit forms
+
+## Phase 14 — Frontend Orders & Tasks `[ ]` not started
+
+- [ ] Order list with status filter (`GET /orders`)
+- [ ] Order detail view showing line items and computed total
+- [ ] Create-order flow: pick customer + products/quantities, submit to
+      `POST /orders` (client never computes/sends a price — matches the
+      backend's server-computed-totals guarantee)
+- [ ] Order status update (`PATCH /orders/{id}`)
+- [ ] Task list with status/priority filters, create/edit/assign
+      (`GET/POST /tasks`, `PATCH /tasks/{id}`)
+
+## Phase 15 — Frontend AI Copilot `[ ]` not started
+
+Spec Section 16.
+
+- [ ] Conversation list + "new conversation" (`GET/POST /ai/conversations`)
+- [ ] Chat interface: message list, input box
+      (`POST /ai/conversations/{id}/messages`)
+- [ ] Structured answer rendering: insights (with severity),
+      recommendations, suggested tasks with a "Create task" action per
+      the spec's mockup
+- [ ] `allow_ai_actions` toggle surfaced in the UI (not silently always
+      on or off) so the write-tool permission model from Phase 6 is
+      actually usable
+- [ ] Rate-limit (429) and upstream-provider-error (502) states handled
+      gracefully, not as a raw error screen
+
+## Phase 16 — Frontend Reports & Imports `[ ]` not started
+
+- [ ] Reports list with status (`GET /reports`) + "Generate report"
+      action (`POST /reports/generate`)
+- [ ] Poll or manually refresh to see a `queued`/`running` report
+      transition to `completed`/`failed`
+- [ ] CSV import screen: file upload + `import_type` selector
+      (`POST /imports/csv`), showing the returned job's
+      total/imported/failed counts and per-row errors
+      (`GET /imports/{id}`)
+
+## Phase 17 — Frontend Quality `[ ]` not started
+
+Spec Section 23: "Frontend-test critical forms, authentication states,
+and Copilot rendering."
+
+- [ ] Vitest + React Testing Library tests for the auth forms and
+      protected-route redirect behavior
+- [ ] Tests for Copilot message rendering (structured answer, tool
+      permission toggle)
+- [ ] `npm run test` actually passes and runs in CI (currently a
+      documented gap — see Phase 9)
+- [ ] Responsive/accessibility pass across the screens built in
+      Phases 11–16
+
+---
+
 ## Current State Summary
 
 | Phase | Status | Branch |
@@ -374,8 +477,15 @@ doesn't actually work; CI runs `lint` + `build` for the frontend, not
 | 6 — Automation | ✅ Merged | `phase/6-automation` |
 | 7 — Imports | ✅ Merged | `phase/7-imports` |
 | 8 — Quality | ✅ Merged | `phase/8-quality` |
-| 9 — Deployment | 🟡 Pushed, awaiting merge | `phase/9-deployment` |
-| 10 | ⬜ Not started (optional/advanced) | — |
+| 9 — Deployment | ✅ Merged | `phase/9-deployment` |
+| 10 — Advanced | ⬜ Not started (optional) | — |
+| 11 — Frontend Auth & Shell | ⬜ Not started | — |
+| 12 — Frontend Dashboard | ⬜ Not started | — |
+| 13 — Frontend Customers & Products | ⬜ Not started | — |
+| 14 — Frontend Orders & Tasks | ⬜ Not started | — |
+| 15 — Frontend AI Copilot | ⬜ Not started | — |
+| 16 — Frontend Reports & Imports | ⬜ Not started | — |
+| 17 — Frontend Quality | ⬜ Not started | — |
 
 **Test count:** 105 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
 
@@ -383,12 +493,10 @@ doesn't actually work; CI runs `lint` + `build` for the frontend, not
 kept (not deleted) per the updated policy in `RULES.md` §9 — branches for
 phases 0–5 above were deleted under the old policy before this changed.
 
-**Next action:** merge `phase/9-deployment` into `develop` on GitHub. The
-core MVP (Phases 0–9) is then functionally complete per the spec's
-Definition of Done (Section 28) — Phase 10 (pgvector/RAG, additional AI
-providers, per-org model policy) is explicitly optional/advanced scope,
-not required for the MVP.
+**Status:** the core backend MVP (Phases 0–9) is merged and functionally
+complete per the spec's Definition of Done (Section 28); Phase 10 is
+optional/advanced scope. The frontend, however, is still just the Phase 0
+scaffold — Phases 11–17 above are what actually build it out, screen by
+screen, the same disciplined way the backend was built.
 
-**Next action:** merge `phase/8-quality` into `develop` on GitHub, then
-start Phase 9 — Deployment (production Docker build, CI, secrets, basic
-monitoring).
+**Next action:** start Phase 11 — Frontend Auth & Shell.
