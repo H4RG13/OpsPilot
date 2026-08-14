@@ -1,5 +1,6 @@
 from httpx import AsyncClient
 
+from app.core.rate_limit import get_rate_limiter
 from app.main import app
 from app.modules.reports.dependencies import get_report_dispatcher
 
@@ -62,3 +63,22 @@ async def test_list_reports_scoped_to_organization(client: AsyncClient):
         assert list_b.json()["total"] == 0
     finally:
         _clear_dispatcher_override()
+
+
+class DenyingRateLimiter:
+    async def check(self, key: str, max_requests: int, window_seconds: int) -> bool:
+        return False
+
+
+async def test_generate_report_rate_limited_returns_429(client: AsyncClient):
+    dispatched_ids: list = []
+    _override_dispatcher(dispatched_ids)
+    app.dependency_overrides[get_rate_limiter] = lambda: DenyingRateLimiter()
+    try:
+        token = await _register(client)
+        response = await client.post("/api/v1/reports/generate", headers=_auth(token))
+        assert response.status_code == 429
+        assert response.json()["error"]["code"] == "RATE_LIMITED"
+    finally:
+        _clear_dispatcher_override()
+        app.dependency_overrides.pop(get_rate_limiter, None)

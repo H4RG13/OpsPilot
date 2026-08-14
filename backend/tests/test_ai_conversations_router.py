@@ -2,6 +2,7 @@ import json
 
 from httpx import AsyncClient
 
+from app.core.rate_limit import get_rate_limiter
 from app.main import app
 from app.modules.ai.dependencies import get_ai_service
 from app.modules.ai.schemas import AIToolResponse, AIUsageInfo
@@ -119,3 +120,30 @@ async def test_cannot_message_another_users_conversation(client: AsyncClient):
         assert response.json()["error"]["code"] == "CONVERSATION_NOT_FOUND"
     finally:
         _clear_ai_override()
+
+
+class DenyingRateLimiter:
+    async def check(self, key: str, max_requests: int, window_seconds: int) -> bool:
+        return False
+
+
+async def test_message_rate_limited_returns_429(client: AsyncClient):
+    _override_ai_service()
+    app.dependency_overrides[get_rate_limiter] = lambda: DenyingRateLimiter()
+    try:
+        token = await _register(client)
+        create_response = await client.post(
+            "/api/v1/ai/conversations", json={}, headers=_auth(token)
+        )
+        conversation_id = create_response.json()["id"]
+
+        response = await client.post(
+            f"/api/v1/ai/conversations/{conversation_id}/messages",
+            json={"content": "Why did revenue drop?"},
+            headers=_auth(token),
+        )
+        assert response.status_code == 429
+        assert response.json()["error"]["code"] == "RATE_LIMITED"
+    finally:
+        _clear_ai_override()
+        app.dependency_overrides.pop(get_rate_limiter, None)

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.modules.audit import service as audit_service
 from app.modules.auth import service
 from app.modules.auth.dependencies import AuthContext, get_current_context
 from app.modules.auth.schemas import (
@@ -28,7 +29,16 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     user = await service.authenticate(db, data.email, data.password)
     membership = await service.get_primary_membership(db, user.id)
-    return await service.issue_tokens(db, user, membership.organization_id, membership.role)
+    tokens = await service.issue_tokens(db, user, membership.organization_id, membership.role)
+    await audit_service.log_action(
+        db,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        action="auth.login",
+        entity_type="user",
+        entity_id=user.id,
+    )
+    return tokens
 
 
 @router.post("/refresh", response_model=TokenResponse)

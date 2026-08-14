@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 7 — Imports.** See `RULES.md` for the branching
+> Status: **Phase 8 — Quality.** See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -114,7 +114,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 7)
+## Known Limitations (Phase 8)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -252,3 +252,51 @@ Imports → Quality → Deployment → Advanced (RAG, additional providers).
   skipped without breaking the rest of the job, duplicate-email upsert,
   a malformed CSV (missing required columns) failing the whole job,
   file-type/size validation, and router-level role/tenant isolation.
+- Rate limiting is implemented on the two AI-consuming endpoints most
+  exposed to abuse/cost overrun: `POST /ai/conversations/{id}/messages`
+  (20/minute per user) and `POST /reports/generate` (5/hour per user),
+  via a Redis fixed-window counter behind a `RateLimiter` protocol —
+  exceeding the limit returns 429 `RATE_LIMITED`. Like every external
+  dependency in this codebase, it's injectable: tests override
+  `get_rate_limiter` with an always-allow fake by default (no live Redis
+  in the suite) and a denying fake to verify the 429 path specifically.
+- The `audit_logs` table is implemented, logging four actions chosen for
+  being genuinely security-sensitive or spec-mandated rather than
+  instrumenting every write in the app: `auth.register`, `auth.login`,
+  `customer.deleted` (the only hard-delete endpoint in the API), and
+  `ai.task_created` (upgrading the Phase 6 stopgap logger call to a real
+  persisted record, per spec Section 10's "write tools... should be
+  logged"). `GET /audit-logs` (paginated, `ADMIN`+ only) exposes it —
+  this endpoint isn't in the spec's Section 21 API table, added because
+  an unqueryable audit log has no real operational value.
+- Error handling is now consistent everywhere: FastAPI's default
+  `{"detail": [...]}` shape for request validation errors is reformatted
+  into the app's `{"error": {...}}` envelope, and a catch-all handler
+  ensures any genuinely unexpected exception also returns that envelope
+  (`INTERNAL_SERVER_ERROR`, no internal message or stack trace) instead
+  of leaking framework/library internals — the real exception is still
+  logged server-side with its traceback.
+- Login runs a bcrypt comparison against a dummy hash even when the
+  submitted email doesn't exist, so a nonexistent account doesn't resolve
+  measurably faster than a wrong password for a real one (no timing-based
+  user enumeration). The error response was already identical either way.
+- Security headers (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, and `Strict-Transport-Security` in production) are
+  added to every response via a small ASGI middleware.
+- 16 new tests (105 total): rate limiter fixed-window logic, 429s from
+  both rate-limited endpoints, audit log entries for all four actions
+  (including metadata on the AI one), `GET /audit-logs` role/tenant
+  scoping, the two reformatted error envelopes, and security headers.
+
+**Bugs caught by actually running the tests, not just writing them:**
+(1) `RequestValidationError.errors()` can contain `Decimal` objects (e.g.
+Pydantic's `gt` constraint context) that plain `json.dumps` can't
+serialize — the validation-error handler crashed on exactly the kind of
+input it exists to handle gracefully, fixed with `jsonable_encoder`.
+(2) The original security-headers/request-ID middleware used FastAPI's
+`@app.middleware("http")` decorator, which wraps the app in Starlette's
+`BaseHTTPMiddleware` — that implementation runs the downstream app inside
+its own `anyio` task group, which doesn't reliably propagate exceptions
+to an app-level catch-all `Exception` handler (they surfaced as an
+`ExceptionGroup` instead, defeating the very hardening this phase was
+adding). Replaced with a single pure-ASGI middleware class instead.
