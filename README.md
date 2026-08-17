@@ -81,6 +81,20 @@ docker compose up --build
 - Backend API: http://localhost:8000 (health check at `/health`)
 - Frontend: http://localhost:5173
 
+### Seeding demo data
+
+```bash
+docker compose exec backend python -m scripts.seed
+```
+
+Creates an "Acme Demo" organization with an OWNER account
+(`demo@acme.example` / `supersecret123`) and an ADMIN account
+(`admin@acme.example` / `supersecret123`) in the same organization —
+useful for comparing what each role can see/edit — plus a sample
+customer, two products, two orders, and a task. Safe to re-run: every
+insert is guarded by a lookup, so running it again just reports the
+existing accounts/data instead of duplicating anything.
+
 ### Running tests
 
 ```bash
