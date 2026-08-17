@@ -42,7 +42,7 @@ export function ImportJobCard({ initialJob }: { initialJob: ImportJobResponse })
       )}
 
       {job.errors.length > 0 && (
-        <div className="mt-3 max-h-40 overflow-y-auto rounded-md border border-slate-800">
+        <div className="mt-3 max-h-40 overflow-auto rounded-md border border-slate-800">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-800 text-slate-500">

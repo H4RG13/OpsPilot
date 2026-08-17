@@ -689,19 +689,68 @@ row and confirmed the job completed with `total: 3, imported: 2,
 failed: 1` and the correct per-row validation error displayed — zero
 console errors throughout.
 
-## Phase 17 — Frontend Quality `[ ]` not started
+## Phase 17 — Frontend Quality `[x]` merged
 
 Spec Section 23: "Frontend-test critical forms, authentication states,
 and Copilot rendering."
 
-- [ ] Vitest + React Testing Library tests for the auth forms and
-      protected-route redirect behavior
-- [ ] Tests for Copilot message rendering (structured answer, tool
-      permission toggle)
-- [ ] `npm run test` actually passes and runs in CI (currently a
-      documented gap — see Phase 9)
-- [ ] Responsive/accessibility pass across the screens built in
-      Phases 11–16
+- [x] Vitest + jsdom + React Testing Library wired up (`vite.config.ts`
+      `test` block, `src/test/setup.ts`, a small `renderWithProviders`
+      helper for `QueryClientProvider` + `MemoryRouter`) — the
+      dependencies were already sitting unused in `package.json` since
+      the Phase 0 scaffold
+- [x] Auth form tests: `LoginPage` (submits credentials, shows a login
+      error without navigating away) and `RegisterPage` (rejects a
+      sub-8-character password client-side without calling the API,
+      submits the correct payload when valid)
+- [x] `ProtectedRoute` tests: loading spinner, redirect-to-`/login`
+      when unauthenticated, renders the protected `Outlet` when
+      authenticated
+- [x] Copilot tests: `StructuredAnswer` (renders answer/insights/
+      recommendations/suggested tasks, "Create Task" calls the real
+      `POST /tasks` and flips to a disabled "Created" state) and
+      `ChatPanel`'s `allow_ai_actions` toggle (verifies the exact
+      payload sent to `sendMessage` with the checkbox unchecked vs.
+      checked)
+- [x] `npm run test` actually passes (11 tests, 5 files) and now runs
+      in CI (`.github/workflows/ci.yml`), closing the gap documented
+      since Phase 9
+- [x] Responsive pass across all Phases 11–16 screens: audited every
+      route at a 375px mobile viewport with Playwright and found a
+      real bug — every table-bearing page (Customers, Products,
+      Orders, Tasks, Reports) caused the whole page body to scroll
+      horizontally instead of just the table
+
+**Bug found and fixed by the responsive pass, not by a linter or type
+check:** `AppShell`'s content column (`<div className="flex flex-1
+flex-col">`) was missing `min-w-0` — a classic flexbox trap where a
+flex child won't shrink below its content's intrinsic width, so a wide
+table forced the whole layout wider than the viewport instead of
+scrolling internally. Fixed by adding `min-w-0` to that column,
+`overflow-x-hidden` on `<main>`, and wrapping every `<table>` (6 call
+sites across Customers/Products/Orders/Tasks/Reports/the order detail
+modal) in its own `overflow-x-auto` container — confirmed with a
+before/after Playwright check that `document.documentElement.
+scrollWidth > clientWidth` went from `true` to `false` on every
+affected route.
+
+**Known gap, documented rather than solved here:** the sidebar itself
+is fixed-width and does not collapse into a hamburger menu on mobile,
+so narrow viewports still have a cramped content column even though
+nothing overflows anymore. A real mobile nav (collapsible sidebar) is
+a distinct, larger feature than a horizontal-overflow bug fix and is
+left for a future pass.
+
+**Pre-existing, out of scope:** `npm audit` flags `react-router` and
+`esbuild`/`vite` advisories; the `react-router` fix requires a major
+version bump (v6 → v7) and the `esbuild` fix requires bumping `vite`
+to a new major — both are unrelated migrations, not testing-phase
+work, and are left as a known dependency-upgrade item.
+
+This closes out the frontend roadmap (Phases 11–17). Every screen in
+the spec's frontend scope now exists, is backed by real API calls, and
+has at least smoke-level test coverage for its riskiest logic
+(auth, route protection, and the Copilot's permission model).
 
 ---
 
@@ -725,10 +774,12 @@ and Copilot rendering."
 | 13 — Frontend Customers & Products | ✅ Merged | `phase/13-frontend-customers-products` |
 | 14 — Frontend Orders & Tasks | ✅ Merged | `phase/14-frontend-orders-tasks` |
 | 15 — Frontend AI Copilot | ✅ Merged | `phase/15-frontend-ai-copilot` |
-| 16 — Frontend Reports & Imports | 🟡 Pushed, awaiting merge | `phase/16-frontend-reports-imports` |
-| 17 — Frontend Quality | ⬜ Not started | — |
+| 16 — Frontend Reports & Imports | ✅ Merged | `phase/16-frontend-reports-imports` |
+| 17 — Frontend Quality | 🟡 Pushed, awaiting merge | `phase/17-frontend-quality` |
 
-**Test count:** 105 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
+**Test count:** 105 backend passing (`cd backend && pytest`) · 11 frontend
+passing (`cd frontend && npm run test`) · **Lint:** clean (`ruff check`,
+`eslint .`)
 
 **Branch retention:** as of the Phase 6 → 7 transition, merged branches are
 kept (not deleted) per the updated policy in `RULES.md` §9 — branches for
@@ -736,17 +787,35 @@ phases 0–5 above were deleted under the old policy before this changed.
 
 **Status:** the core backend MVP (Phases 0–9) is merged and functionally
 complete per the spec's Definition of Done (Section 28); Phase 10 is
-optional/advanced scope. Phase 11 gave the frontend its first real
-screens (auth + shell); Phase 12 added the first real data screen (the
-dashboard); Phase 13 added the first CRUD screens (Customers,
-Products); Phase 14 added the two screens with real cross-entity
-relationships (Orders, Tasks); Phase 15 wired the frontend up to the
-live AI Gateway, surfacing and fixing three real backend bugs there;
-Phase 16 wired it up to the Celery-backed Reports/Imports jobs from
-Phases 6–7, surfacing and fixing three more real bugs at the
-task/worker-process boundary that the backend test suite structurally
-can't reach. All data-bearing screens in the spec are now built —
-Phase 17 (frontend testing) is what's left.
+optional/advanced scope. Phases 11–16 built out every frontend screen
+in the spec, screen by screen, catching and fixing real bugs (both
+frontend and backend) at every step along the way by actually running
+the app rather than trusting builds and mocked tests. Phase 17 closes
+the loop with real frontend test coverage, a CI gate for it, and a
+responsive-layout bug fix. **The entire spec — backend and frontend —
+is now implemented.** Phase 10 (Advanced: RAG, additional providers,
+per-org model policy) remains explicitly optional/unstarted.
 
-**Next action:** merge `phase/16-frontend-reports-imports` into
-`develop` on GitHub, then start Phase 17 — Frontend Quality.
+**Next action:** merge `phase/17-frontend-quality` into `develop` on
+GitHub. This is the last planned phase — see "What's next" below for
+optional follow-ups.
+
+## What's next
+
+With Phases 0–9 and 11–17 all merged, the project matches the spec's
+Definition of Done. Worthwhile follow-ups, none of them required:
+
+- **Phase 10 (Advanced, optional):** pgvector/RAG over imported data,
+  an OpenAI provider alongside Groq to prove the AI Gateway's
+  provider-swap story, per-organization model policy.
+- **Mobile nav:** the sidebar doesn't collapse into a hamburger menu on
+  small viewports (flagged in Phase 17's known gaps).
+- **A list-organization-members endpoint** so Tasks can get a real
+  assignee picker instead of the "assign to me" checkbox from Phase 14.
+- **`GET /reports/{id}` and a list endpoint for import jobs**, so
+  report/import history survives a page reload instead of being
+  client-side-only for the current session (Phases 15/16's documented
+  gaps).
+- **Dependency upgrades:** `react-router` v7 and `vite`/`esbuild` to
+  their latest majors, clearing the `npm audit` findings noted in
+  Phase 17 — each is its own migration, not a quick bump.

@@ -66,6 +66,7 @@ export function ReportsPage() {
           isEmpty={!isLoading && !isError && (data?.items.length ?? 0) === 0}
           emptyMessage="No reports yet. Generate one to get started."
         >
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
@@ -112,6 +113,7 @@ export function ReportsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </QueryState>
 
         {data && (

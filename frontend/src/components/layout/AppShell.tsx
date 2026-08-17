@@ -48,7 +48,7 @@ export function AppShell() {
         </nav>
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
           <div>
             <p className="text-sm font-medium text-slate-200">
@@ -63,7 +63,7 @@ export function AppShell() {
           </Button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

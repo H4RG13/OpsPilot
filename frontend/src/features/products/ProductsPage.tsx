@@ -107,6 +107,7 @@ export function ProductsPage() {
           isEmpty={!isLoading && !isError && (data?.items.length ?? 0) === 0}
           emptyMessage="No products match your filters."
         >
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
@@ -156,6 +157,7 @@ export function ProductsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </QueryState>
 
         {data && (
