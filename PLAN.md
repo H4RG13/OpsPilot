@@ -373,17 +373,48 @@ These phases build the actual UI, numbered as a continuation (11+) so
 they're unambiguous in branch names (`phase/11-...`) without colliding
 with the backend's 0–10. Each targets a concrete spec section:
 
-## Phase 11 — Frontend Auth & Shell `[ ]` not started
+## Phase 11 — Frontend Auth & Shell ✅ pushed, awaiting merge (`phase/11-frontend-auth-shell`)
 
-- [ ] Login / register pages wired to `POST /auth/login` /
-      `POST /auth/register`
-- [ ] Token storage + axios interceptor for silent refresh via
-      `POST /auth/refresh`; logout clears tokens and calls
-      `POST /auth/logout`
-- [ ] Protected route wrapper (redirect to login when unauthenticated)
-- [ ] App shell: nav/sidebar, header showing current org + role (from
-      `GET /me`), logout action
-- [ ] Loading/error states for the auth flow itself
+- [x] Login / register pages wired to `POST /auth/login` /
+      `POST /auth/register`; register auto-logs-in on success (matches
+      the backend's existing "register returns tokens immediately"
+      behavior)
+- [x] Token storage (`localStorage`) + an axios response interceptor that
+      catches a 401, refreshes via `POST /auth/refresh` (de-duplicated
+      across concurrent requests with a shared in-flight promise), retries
+      the original request once, and force-redirects to `/login` only if
+      the refresh itself fails. Auth endpoints (`/auth/login`,
+      `/auth/register`, `/auth/refresh`) are explicitly excluded from this
+      flow so a wrong-password 401 shows as a normal form error, not a
+      forced logout
+- [x] Logout clears local tokens and calls `POST /auth/logout`
+      (best-effort — the client-side session is already gone either way)
+- [x] `ProtectedRoute` layout route: shows a spinner while the initial
+      session restore (`GET /me` if a token exists) is in flight, then
+      redirects to `/login` (preserving the attempted path) or renders
+      the shell
+- [x] `AppShell`: sidebar nav linking to every planned section (Phases
+      12–16 render as a shared `ComingSoon` placeholder until each is
+      built), header showing the current org name (`GET
+      /organizations/current`) and the caller's name + role, logout button
+- [x] Small hand-rolled UI kit (`Button`, `Input`, `Card`, `Alert`) instead
+      of pulling in shadcn/ui from the spec's tech stack — a deliberate,
+      documented simplification given how little UI exists so far; worth
+      revisiting once there's enough screen surface to justify the setup
+
+**Verified live in a real browser** (Playwright driving the actual dev
+server, not just `tsc`/build passing): unauthenticated `/` correctly
+redirects to `/login`; login with an existing user lands on the dashboard
+with the correct org/role in the header; logout returns to `/login`;
+register-with-a-fresh-email auto-logs-in; and — the one that actually
+matters — corrupting the stored access token while keeping a valid
+refresh token, then reloading, silently recovers via the refresh
+interceptor with no visible disruption and no thrown JS errors (the two
+401s in the console are just the browser's own network log for the
+requests that triggered the refresh, not unhandled exceptions).
+
+**Known limitation:** no frontend tests yet (that's Phase 17, per spec
+Section 23's own phasing); `npm run test` still has nothing to run.
 
 ## Phase 12 — Frontend Dashboard `[ ]` not started
 
@@ -479,7 +510,7 @@ and Copilot rendering."
 | 8 — Quality | ✅ Merged | `phase/8-quality` |
 | 9 — Deployment | ✅ Merged | `phase/9-deployment` |
 | 10 — Advanced | ⬜ Not started (optional) | — |
-| 11 — Frontend Auth & Shell | ⬜ Not started | — |
+| 11 — Frontend Auth & Shell | 🟡 Pushed, awaiting merge | `phase/11-frontend-auth-shell` |
 | 12 — Frontend Dashboard | ⬜ Not started | — |
 | 13 — Frontend Customers & Products | ⬜ Not started | — |
 | 14 — Frontend Orders & Tasks | ⬜ Not started | — |
@@ -495,8 +526,9 @@ phases 0–5 above were deleted under the old policy before this changed.
 
 **Status:** the core backend MVP (Phases 0–9) is merged and functionally
 complete per the spec's Definition of Done (Section 28); Phase 10 is
-optional/advanced scope. The frontend, however, is still just the Phase 0
-scaffold — Phases 11–17 above are what actually build it out, screen by
+optional/advanced scope. Phase 11 gives the frontend its first real
+screens (auth + shell) — Phases 12–17 build out the rest, screen by
 screen, the same disciplined way the backend was built.
 
-**Next action:** start Phase 11 — Frontend Auth & Shell.
+**Next action:** merge `phase/11-frontend-auth-shell` into `develop` on
+GitHub, then start Phase 12 — Frontend Dashboard.
