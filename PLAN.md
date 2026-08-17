@@ -808,8 +808,6 @@ Definition of Done. Worthwhile follow-ups, none of them required:
 - **Phase 10 (Advanced, optional):** pgvector/RAG over imported data,
   an OpenAI provider alongside Groq to prove the AI Gateway's
   provider-swap story, per-organization model policy.
-- **Mobile nav:** the sidebar doesn't collapse into a hamburger menu on
-  small viewports (flagged in Phase 17's known gaps).
 - **A list-organization-members endpoint** so Tasks can get a real
   assignee picker instead of the "assign to me" checkbox from Phase 14.
 - **`GET /reports/{id}` and a list endpoint for import jobs**, so
@@ -844,3 +842,10 @@ out, each on its own branch rather than forced into a phase number:
   scroll wrapper from Phase 17's responsive fix. Kept the exact same
   external API (`value`/`onChange`/`<option>` children) so none of the
   8 call sites needed to change (`feature/custom-select-dropdown`).
+- Added a real mobile navigation drawer: the sidebar is now off-canvas
+  (`translate-x-full`) below the `lg` breakpoint, toggled by a hamburger
+  button in the header, with a tap-to-close backdrop and auto-close on
+  navigation. Previously the sidebar was always statically rendered at
+  a fixed width, leaving almost no room for content on phone-width
+  viewports — this closes the gap flagged in Phase 17's known
+  limitations (`feature/mobile-nav-hamburger`).
