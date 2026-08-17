@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 14 — Frontend Orders & Tasks.** Backend MVP (Phases 0–9)
+> Status: **Phase 15 — Frontend AI Copilot.** Backend MVP (Phases 0–9)
 > is complete; the frontend is being built out phase by phase (see
 > `PLAN.md`). See `RULES.md` for the branching
 > and release workflow, and
@@ -198,7 +198,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 14)
+## Known Limitations (Phase 15)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -507,6 +507,53 @@ changes to those primitives.
   created and then edited a task (priority, status, self-assignment) —
   zero console errors throughout.
 - Still no frontend tests (`npm run test` has nothing to run) — Phase
-  17. Every section besides Dashboard, Customers, Products, Orders,
-  and Tasks (AI Copilot, Reports, Imports) is still a shared
-  `ComingSoon` placeholder — Phases 15–16 replace them one at a time.
+  17.
+
+**Phase 15 — the AI Copilot, and three real backend bugs it finally
+exposed.** Conversation list + "new conversation", a chat interface,
+structured-answer rendering (insights with severity, recommendations,
+suggested tasks each with a working "Create Task" button that calls
+the existing `POST /tasks`), and a per-message `allow_ai_actions`
+toggle (it's a per-message field on the backend, not per-conversation)
+so the write-tool permission model built in Phase 6 is actually
+reachable from the UI.
+
+**Known gap, documented rather than faked:** the backend has no
+endpoint to fetch a conversation's past messages — only
+`POST .../messages` exists. Chat history is therefore client-side only,
+scoped to the current browser session; reopening an older conversation
+shows an empty thread until you send a new message.
+
+**The frontend's honest 502 handling surfaced three real bugs in the
+AI Gateway (Phases 4–5) that had only ever run against a mocked
+provider in tests, never the live Groq API:**
+1. The default Groq model IDs (`gpt-oss-20b`, `gpt-oss-120b`,
+   `qwen-3.6-27b`, in both `config.py` and `.env`) were missing Groq's
+   required provider prefix and 404'd on every call. Fixed by checking
+   Groq's actual `/v1/models` catalog and correcting all three to
+   `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `qwen/qwen3.6-27b`.
+2. Tool-calling's follow-up messages were malformed per the
+   OpenAI-compatible wire format Groq speaks: the assistant message
+   never declared its `tool_calls`, and the tool-response message was
+   missing the required `tool_call_id` — so any question that actually
+   triggered a tool call 400'd. Fixed in `copilot_service.py`.
+3. Groq's `function.arguments` field is always a JSON-encoded string,
+   never a bare object, but `groq_provider.py` passed it straight into
+   a Pydantic model expecting a `dict`, crashing on the first tool
+   call. Fixed with a small parsing helper; the existing test's mock
+   fixture (which used a bare dict, masking this) was corrected to
+   match Groq's real format.
+
+All three were invisible to the backend test suite (105/105 passed
+throughout, before and after) because the suite's provider mock was
+self-consistent with the bugs — this is exactly the kind of gap that
+only shows up when you run the real thing against the real external
+API, not just against your own mocks.
+
+Verified live in a browser against the real Groq API: asked a revenue
+question, got back a correct structured answer (right dollar figures,
+right product breakdown) with all three answer sections rendering,
+and confirmed "Create Task" on a suggestion actually created a task —
+zero console errors. Every section besides Dashboard, Customers,
+Products, Orders, Tasks, and AI Copilot (Reports, Imports) is still a
+shared `ComingSoon` placeholder — Phase 16 replaces it.

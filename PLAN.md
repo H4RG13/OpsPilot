@@ -535,21 +535,77 @@ Orders page assume the org has fewer than 100 of each (matches the
 `page_size=100` picker fetch) — fine for this portfolio's demo data,
 would need real pagination-aware lookups at larger scale.
 
-## Phase 15 — Frontend AI Copilot `[ ]` not started
+## Phase 15 — Frontend AI Copilot `[x]` merged
 
 Spec Section 16.
 
-- [ ] Conversation list + "new conversation" (`GET/POST /ai/conversations`)
-- [ ] Chat interface: message list, input box
+- [x] Conversation list + "new conversation" (`GET/POST /ai/conversations`)
+- [x] Chat interface: message list, input box
       (`POST /ai/conversations/{id}/messages`)
-- [ ] Structured answer rendering: insights (with severity),
-      recommendations, suggested tasks with a "Create task" action per
-      the spec's mockup
-- [ ] `allow_ai_actions` toggle surfaced in the UI (not silently always
-      on or off) so the write-tool permission model from Phase 6 is
-      actually usable
-- [ ] Rate-limit (429) and upstream-provider-error (502) states handled
-      gracefully, not as a raw error screen
+- [x] Structured answer rendering: insights (with severity badges),
+      recommendations, suggested tasks each with a "Create Task" action
+      that calls the existing `POST /tasks` with the suggestion's
+      title + priority
+- [x] `allow_ai_actions` toggle surfaced per-message (it's a per-message
+      field on the backend, not per-conversation) so the write-tool
+      permission model from Phase 6 is actually usable from the UI
+- [x] Rate-limit (429) and upstream-provider-error (502) states handled
+      gracefully via the same `getErrorMessage` envelope parsing used
+      everywhere else, not a raw error screen
+
+**Known gap called out rather than silently worked around:** the
+backend has no endpoint to fetch a conversation's past messages (only
+`POST .../messages` exists, which both sends a message and returns the
+answer) — so chat history only exists client-side, for the current
+browser session. Reopening an older conversation from the sidebar
+shows an empty thread until a new message is sent. Documented rather
+than faked with a fabricated history.
+
+**Three real bugs found and fixed while verifying this phase live —
+none of them frontend bugs, but the frontend's honest 502 handling is
+exactly what surfaced them:**
+1. **Invalid Groq model IDs.** `config.py`'s defaults (`gpt-oss-20b`,
+   `gpt-oss-120b`, `qwen-3.6-27b`) and the same values baked into
+   `.env`/`.env.example` were missing Groq's required provider-prefixed
+   IDs, so every single Copilot call 404'd. Confirmed the real catalog
+   via Groq's `/v1/models` endpoint and corrected all three to
+   `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `qwen/qwen3.6-27b` (also
+   updated `cost.py`'s cost-table keys to match).
+2. **Malformed tool-calling follow-up messages.** After executing a
+   tool, `copilot_service.py` appended a `role: "tool"` message without
+   the required `tool_call_id`, and the preceding `role: "assistant"`
+   message never declared its `tool_calls` at all — both required by
+   the OpenAI-compatible wire format Groq speaks. Every multi-round
+   tool-calling request failed with a 400 the moment a tool was
+   actually invoked. Fixed by including the full `tool_calls` array on
+   the assistant message and `tool_call_id` on each tool response.
+3. **Tool-call arguments parsed as the wrong type.** Groq (like OpenAI)
+   always sends `function.arguments` as a JSON-*encoded string*, never
+   a bare object — `groq_provider.py` passed it straight into
+   `AIToolCall(arguments=...)`, which expects a `dict`, raising a
+   Pydantic validation error on the very first tool call. Fixed with a
+   small `_parse_tool_arguments` helper; the existing test's fixture
+   (which used a bare dict, masking this) was corrected to a JSON
+   string to match Groq's actual format.
+
+All three were only found because the Copilot was exercised against
+the *live* Groq API with a real key, not the mocked provider the
+backend test suite uses — the mocks were self-consistent with the
+bugs, so 105/105 tests passed throughout. All 105 still pass after the
+fixes. (A fourth suspected issue — mojibake in an AI-generated task
+title — turned out to be a false alarm from the verification tooling's
+own stdin encoding, not a real bug; confirmed by inspecting raw response
+bytes. A defensive `response.content.decode("utf-8")` was kept in
+`groq_provider.py` regardless, since relying on httpx's charset
+auto-detection for short JSON bodies is fragile in general.)
+
+**Verified live in a real browser** with the real Groq API (not
+mocked): created a conversation, asked "What is our current revenue
+and which products are performing best?", got back a correct
+structured answer (right revenue figure, right product breakdown) with
+insights/recommendations/suggested tasks all rendering, clicked
+"Create Task" on a suggestion and confirmed the task was actually
+created via `GET /tasks` — zero console errors throughout.
 
 ## Phase 16 — Frontend Reports & Imports `[ ]` not started
 
@@ -596,8 +652,8 @@ and Copilot rendering."
 | 11 — Frontend Auth & Shell | ✅ Merged | `phase/11-frontend-auth-shell` |
 | 12 — Frontend Dashboard | ✅ Merged | `phase/12-frontend-dashboard` |
 | 13 — Frontend Customers & Products | ✅ Merged | `phase/13-frontend-customers-products` |
-| 14 — Frontend Orders & Tasks | 🟡 Pushed, awaiting merge | `phase/14-frontend-orders-tasks` |
-| 15 — Frontend AI Copilot | ⬜ Not started | — |
+| 14 — Frontend Orders & Tasks | ✅ Merged | `phase/14-frontend-orders-tasks` |
+| 15 — Frontend AI Copilot | 🟡 Pushed, awaiting merge | `phase/15-frontend-ai-copilot` |
 | 16 — Frontend Reports & Imports | ⬜ Not started | — |
 | 17 — Frontend Quality | ⬜ Not started | — |
 
@@ -612,10 +668,11 @@ complete per the spec's Definition of Done (Section 28); Phase 10 is
 optional/advanced scope. Phase 11 gave the frontend its first real
 screens (auth + shell); Phase 12 added the first real data screen (the
 dashboard); Phase 13 added the first CRUD screens (Customers,
-Products); Phase 14 adds the two screens with real cross-entity
-relationships (Orders reference Customers/Products, Tasks reference
-users) — Phases 15–17 build out the rest, screen by screen, the same
-disciplined way the backend was built.
+Products); Phase 14 added the two screens with real cross-entity
+relationships (Orders, Tasks); Phase 15 wired the frontend up to the
+live AI Gateway built back in Phases 4–5, which surfaced and fixed
+three real backend bugs in that gateway that had never been exercised
+against the real Groq API before — Phases 16–17 build out the rest.
 
-**Next action:** merge `phase/14-frontend-orders-tasks` into `develop`
-on GitHub, then start Phase 15 — Frontend AI Copilot.
+**Next action:** merge `phase/15-frontend-ai-copilot` into `develop`
+on GitHub, then start Phase 16 — Frontend Reports & Imports.

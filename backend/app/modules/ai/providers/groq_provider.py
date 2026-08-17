@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Any
 
@@ -69,7 +70,7 @@ class GroqProvider(AIProvider):
             AIToolCall(
                 id=call["id"],
                 name=call["function"]["name"],
-                arguments=call["function"].get("arguments", {}),
+                arguments=self._parse_tool_arguments(call["function"].get("arguments")),
             )
             for call in message.get("tool_calls") or []
         ]
@@ -90,6 +91,20 @@ class GroqProvider(AIProvider):
         payload = await self._chat_completion(model=model, messages=vision_messages, **kwargs)
         choice = payload["choices"][0]["message"]
         return self._to_text_response(payload, model, choice.get("content") or "")
+
+    @staticmethod
+    def _parse_tool_arguments(raw_arguments: Any) -> dict[str, Any]:
+        """The OpenAI-compatible wire format always sends tool call arguments as a
+        JSON-encoded string, never a dict, even though it's structurally an object."""
+        if isinstance(raw_arguments, dict):
+            return raw_arguments
+        if not raw_arguments:
+            return {}
+        try:
+            parsed = json.loads(raw_arguments)
+        except (TypeError, ValueError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
 
     async def _chat_completion(
         self, *, model: str, messages: list[dict[str, str]], **kwargs: Any
@@ -118,7 +133,10 @@ class GroqProvider(AIProvider):
                 f"Groq returned {response.status_code} for model '{model}': {response.text}"
             )
 
-        payload = response.json()
+        # Force UTF-8 rather than trusting httpx's charset auto-detection: for short
+        # JSON bodies with only one or two non-ASCII characters (e.g. an em dash in
+        # generated text), that heuristic can guess cp1252 and mojibake the content.
+        payload = json.loads(response.content.decode("utf-8"))
         payload["_latency_ms"] = latency_ms
         return payload
 
