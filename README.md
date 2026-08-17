@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 12 — Frontend Dashboard.** Backend MVP (Phases 0–9)
+> Status: **Phase 13 — Frontend Customers & Products.** Backend MVP (Phases 0–9)
 > is complete; the frontend is being built out phase by phase (see
 > `PLAN.md`). See `RULES.md` for the branching
 > and release workflow, and
@@ -198,7 +198,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 12)
+## Known Limitations (Phase 13)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -436,11 +436,40 @@ the long-running Vite dev server inside the Docker container needed a
 restart to pick up the new route composition. A visual browser check
 caught this immediately; `tsc`/`vite build` passing would not have.
 
-- Every section besides Dashboard (Customers, Products, Orders, Tasks,
-  AI Copilot, Reports, Imports) is still a shared `ComingSoon`
-  placeholder — Phases 13–16 replace them one at a time.
 - The revenue trend chart renders a single point when all activity
   falls on one day (as with the demo seed data above) — this is
   correct behavior, not a bug, but it means the chart's visual value
   is easier to appreciate once there's data spread across a longer
   window.
+
+**Phase 13 — the first CRUD screens.** Customers and Products both get
+full list/search/filter/pagination/create/edit/delete, replacing their
+`ComingSoon` placeholders. New shared primitives (`Select`, `Modal`,
+`ConfirmDialog`, `Pagination`, a `canWrite(role)` permission helper)
+were built here and are reused as-is by both pages — the same
+primitives will carry Orders and Tasks in Phase 14 without needing to
+be rebuilt.
+
+- Customers: search (name/email) + status filter (`active`/
+  `inactive`/`at_risk`), create/edit in a modal, delete with a
+  confirmation dialog.
+- Products: category (free-text) filter + active/inactive filter,
+  same create/edit/delete pattern.
+- Write actions (the "New X" button and each row's Edit/Delete) are
+  hidden entirely for `MEMBER`s, matching the backend's
+  `require_role(Role.ADMIN)` enforcement — a `MEMBER` sees a read-only
+  table with no way to even attempt a write that would 403.
+- Verified live in a browser (Playwright): created, searched for,
+  edited, and deleted a test customer and a test product against the
+  running dev stack, with zero console errors. The frontend container
+  was restarted before verification (per the lesson learned in Phase
+  12) so a stale Vite dev-server session couldn't produce a false
+  negative.
+
+- Every section besides Dashboard, Customers, and Products (Orders,
+  Tasks, AI Copilot, Reports, Imports) is still a shared `ComingSoon`
+  placeholder — Phases 14–16 replace them one at a time.
+- Table pagination has no page-size selector (fixed at 20 rows) — not
+  a spec requirement, easy to add later if needed.
+- Still no frontend tests (`npm run test` has nothing to run) — Phase
+  17.

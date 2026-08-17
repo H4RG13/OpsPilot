@@ -457,16 +457,35 @@ trusting `npm run build`/`lint` passing.
 **Known limitation:** no frontend tests yet (still Phase 17, per spec
 Section 23's own phasing).
 
-## Phase 13 — Frontend Customers & Products `[ ]` not started
+## Phase 13 — Frontend Customers & Products `[x]` merged
 
-- [ ] Customer list: search, status filter, pagination
-      (`GET /customers`)
-- [ ] Customer create/edit forms (`ADMIN`+ only — hide/disable actions
-      for `MEMBER`s per the role the backend already enforces)
-- [ ] Customer delete with confirmation
-- [ ] Product list: category/active filters, pagination
-      (`GET /products`)
-- [ ] Product create/edit forms
+- [x] Customer list: search + status filter (active/inactive/at_risk) +
+      pagination (`GET /customers`)
+- [x] Customer create/edit forms in a shared modal, `ADMIN`+ only — the
+      "New Customer" button and each row's Edit/Delete actions are
+      hidden entirely for `MEMBER`s via a `canWrite(role)` helper that
+      mirrors the backend's `require_role(Role.ADMIN)` check
+- [x] Customer delete with a confirmation dialog (`ConfirmDialog`,
+      built on a small shared `Modal` primitive)
+- [x] Product list: category (free-text) + active/inactive filter +
+      pagination (`GET /products`)
+- [x] Product create/edit forms, same modal + role-gating pattern as
+      customers
+- [x] New shared primitives added along the way: `Select`, `Modal`,
+      `ConfirmDialog`, `Pagination` — reused as-is by both pages, and
+      by every future list-with-CRUD screen (Orders, Tasks)
+
+**Verified live in a real browser** (Playwright driving the dev
+server): created, searched for, edited, and deleted a test customer;
+created and deleted a test product; both pages showed correct
+optimistic-free (invalidate-and-refetch) updates after every mutation
+and zero console errors. Learned from Phase 12's dev-server bug ahead
+of time — the frontend container was restarted before verification
+so a stale Vite session couldn't produce a false negative.
+
+**Known limitation:** no frontend tests yet (still Phase 17, per spec
+Section 23's own phasing). Table pagination has no page-size selector
+(fixed at 20) — not required by the spec, easy to add later if needed.
 
 ## Phase 14 — Frontend Orders & Tasks `[ ]` not started
 
@@ -538,8 +557,8 @@ and Copilot rendering."
 | 9 — Deployment | ✅ Merged | `phase/9-deployment` |
 | 10 — Advanced | ⬜ Not started (optional) | — |
 | 11 — Frontend Auth & Shell | ✅ Merged | `phase/11-frontend-auth-shell` |
-| 12 — Frontend Dashboard | 🟡 Pushed, awaiting merge | `phase/12-frontend-dashboard` |
-| 13 — Frontend Customers & Products | ⬜ Not started | — |
+| 12 — Frontend Dashboard | ✅ Merged | `phase/12-frontend-dashboard` |
+| 13 — Frontend Customers & Products | 🟡 Pushed, awaiting merge | `phase/13-frontend-customers-products` |
 | 14 — Frontend Orders & Tasks | ⬜ Not started | — |
 | 15 — Frontend AI Copilot | ⬜ Not started | — |
 | 16 — Frontend Reports & Imports | ⬜ Not started | — |
@@ -554,9 +573,10 @@ phases 0–5 above were deleted under the old policy before this changed.
 **Status:** the core backend MVP (Phases 0–9) is merged and functionally
 complete per the spec's Definition of Done (Section 28); Phase 10 is
 optional/advanced scope. Phase 11 gave the frontend its first real
-screens (auth + shell); Phase 12 adds the first real data screen (the
-dashboard) — Phases 13–17 build out the rest, screen by screen, the
-same disciplined way the backend was built.
+screens (auth + shell); Phase 12 added the first real data screen (the
+dashboard); Phase 13 adds the first CRUD screens (Customers, Products)
+— Phases 14–17 build out the rest, screen by screen, the same
+disciplined way the backend was built.
 
-**Next action:** merge `phase/12-frontend-dashboard` into `develop` on
-GitHub, then start Phase 13 — Frontend Customers & Products.
+**Next action:** merge `phase/13-frontend-customers-products` into
+`develop` on GitHub, then start Phase 14 — Frontend Orders & Tasks.
