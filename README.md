@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 15 — Frontend AI Copilot.** Backend MVP (Phases 0–9)
+> Status: **Phase 16 — Frontend Reports & Imports.** Backend MVP (Phases 0–9)
 > is complete; the frontend is being built out phase by phase (see
 > `PLAN.md`). See `RULES.md` for the branching
 > and release workflow, and
@@ -198,7 +198,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 15)
+## Known Limitations (Phase 16)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -554,6 +554,58 @@ Verified live in a browser against the real Groq API: asked a revenue
 question, got back a correct structured answer (right dollar figures,
 right product breakdown) with all three answer sections rendering,
 and confirmed "Create Task" on a suggestion actually created a task —
-zero console errors. Every section besides Dashboard, Customers,
-Products, Orders, Tasks, and AI Copilot (Reports, Imports) is still a
-shared `ComingSoon` placeholder — Phase 16 replaces it.
+zero console errors.
+
+**Phase 16 — Reports & Imports, the last data screens, and three more
+real backend bugs found at the worker boundary.** Reports list with
+status + a "Generate Report" action, automatic polling (react-query
+`refetchInterval`, only while a report is `queued`/`running`) so
+completion shows up without a manual refresh, and a report detail
+modal — reusing Phase 15's `StructuredAnswer` component unmodified,
+since a completed report's `summary` field is a JSON-encoded string
+with the exact same shape as a Copilot answer. A CSV import screen
+(`import_type` selector + file upload) shows total/imported/failed row
+counts and a per-row error table, polling the job by ID every 2s while
+it's in flight, with required-column hints shown per import type since
+a missing column fails the whole job rather than individual rows.
+
+**Known gaps, documented rather than faked:** there's no
+`GET /reports/{id}` (only the paginated list) and no list endpoint for
+import jobs at all (only upload + get-by-id) — so import history is
+client-side only for the current session, the same pattern as Copilot
+conversation history in Phase 15.
+
+**Three more real bugs, all at the Celery task/worker-process boundary
+that the backend test suite structurally can't reach** (105/105 tests
+passed throughout, before and after every fix, because they exercise
+the report/import *services* directly via DI-overridden dispatchers
+and never run an actual Celery task against real Postgres):
+1. Both `imports/tasks.py` and `reports/tasks.py` call
+   `asyncio.run(...)` per task but shared one module-level asyncpg
+   connection pool across those independent event loops — a pooled
+   connection from one task's (now-closed) loop got reused by the
+   next task, failing with
+   `InterfaceError: cannot perform operation: another operation is in
+   progress`. Every report/import got stuck at `queued` forever. Fixed
+   with `await engine.dispose()` at the end of each task.
+2. Once that was fixed, flushing a `Report`/`ImportJob` row failed
+   with `NoReferencedTableError` — the worker process only imports its
+   own task modules, never the full ORM model set the FastAPI app gets
+   for free by importing every router at startup. Fixed by importing
+   all models in `celery_app.py`, mirroring the list
+   `migrations/env.py` already used for Alembic.
+3. Not a code bug but a deployment gotcha worth documenting: after
+   fixing Phase 15's Groq model IDs in `.env`, only the `backend`
+   container had been recreated — the `worker` container was `restart`ed,
+   which does **not** pick up `.env` changes, so it kept calling the
+   broken model IDs until explicitly recreated with
+   `docker compose up -d worker`.
+
+Verified live against the real worker and real Postgres: generated a
+report and watched it go `queued` → `completed` with correct data and
+a fully rendered structured answer; uploaded a 3-row CSV with one
+intentionally invalid row and got back `total: 3, imported: 2,
+failed: 1` with the correct per-row error — zero console errors.
+
+Every section in the spec's frontend scope is now built. Phase 17
+(frontend testing) is what remains.

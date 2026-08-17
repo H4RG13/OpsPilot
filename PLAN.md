@@ -607,16 +607,87 @@ insights/recommendations/suggested tasks all rendering, clicked
 "Create Task" on a suggestion and confirmed the task was actually
 created via `GET /tasks` — zero console errors throughout.
 
-## Phase 16 — Frontend Reports & Imports `[ ]` not started
+## Phase 16 — Frontend Reports & Imports `[x]` merged
 
-- [ ] Reports list with status (`GET /reports`) + "Generate report"
+- [x] Reports list with status (`GET /reports`) + "Generate Report"
       action (`POST /reports/generate`)
-- [ ] Poll or manually refresh to see a `queued`/`running` report
-      transition to `completed`/`failed`
-- [ ] CSV import screen: file upload + `import_type` selector
-      (`POST /imports/csv`), showing the returned job's
-      total/imported/failed counts and per-row errors
-      (`GET /imports/{id}`)
+- [x] Automatic polling (react-query `refetchInterval`, every 3s, only
+      while any report is `queued`/`running`) so a report transitions
+      to `completed`/`failed` in the UI without a manual refresh
+- [x] Report detail modal: the backend's `summary` field is a
+      JSON-encoded string with the exact same
+      `{answer, insights, recommendations, suggested_tasks}` shape as
+      the Copilot's structured answers — reused Phase 15's
+      `StructuredAnswer` component as-is, including its "Create Task"
+      action, with zero changes needed
+- [x] CSV import screen: `import_type` selector + file input
+      (`POST /imports/csv`, `multipart/form-data`), showing each
+      upload's total/imported/failed row counts and a per-row error
+      table, polling `GET /imports/{id}` every 2s while
+      `queued`/`running`
+- [x] Required-column hints shown per import type (`name, email` for
+      customers; `name, category, price` for products) since the
+      backend fails the whole job on a missing column, not per-row
+
+**Known gaps, documented rather than faked:** there's no
+`GET /reports/{id}` and no list endpoint for import jobs at all — only
+`POST /imports/csv` and `GET /imports/{id}`. Import history is
+therefore client-side only for the current browser session (same
+pattern as Copilot conversation history in Phase 15); reports rely
+entirely on the paginated list endpoint for status. Import writes are
+`ADMIN`+ only per the backend; the page shows a plain message instead
+of the form for `MEMBER`s.
+
+**Three more real backend bugs found and fixed while verifying this
+phase live — the fourth and fifth real bugs this frontend build has
+surfaced in already-merged backend code, on top of the two from Phase
+15:**
+1. **Celery tasks stuck at `queued` forever.** Both
+   `imports/tasks.py` and `reports/tasks.py` call `asyncio.run(...)`
+   per task, but shared the same module-level asyncpg connection pool
+   (`engine` in `core/database.py`) across those independent event
+   loops. asyncpg connections are bound to the loop that created them;
+   once the first task's loop closed, the pooled connection became
+   unusable and every subsequent task failed with
+   `InterfaceError: cannot perform operation: another operation is in
+   progress`. Fixed by calling `await engine.dispose()` in a `finally`
+   block at the end of each task's async body, forcing a fresh pool
+   for the next task's loop.
+2. **Worker process missing model registrations.** Once bug #1 was
+   fixed, flushing an `ImportJob` or `Report` row failed with
+   `NoReferencedTableError: ... could not find table 'users'` —
+   `app/workers/celery_app.py` only imports the task modules
+   themselves, never the full set of ORM models, so `Base.metadata`
+   was missing tables that other models' foreign keys reference. The
+   FastAPI app gets this for free by importing every router (and
+   therefore every model) at startup; the worker process never did.
+   Fixed by importing all ORM models in `celery_app.py`, mirroring the
+   same list `migrations/env.py` already used for Alembic autogenerate.
+3. **Worker container running stale environment variables.** After
+   fixing the Phase 15 Groq model IDs in `.env`, only the `backend`
+   container had been recreated (`docker compose up -d backend`) — the
+   `worker` container was only ever `restart`ed, which does not pick
+   up `.env` changes, so it kept calling the broken model IDs. Not a
+   code bug, but a deployment/verification-process gap worth noting:
+   `docker compose restart <service>` ≠ picking up new environment
+   variables; that needs `docker compose up -d <service>` to recreate
+   the container.
+
+All three were invisible to the backend test suite (105/105 passed
+throughout, both before and after every fix) because tests exercise
+the report/import *services* directly through DI-overridden
+dispatchers and never actually run a Celery task through `asyncio.run`
+against real Postgres — this whole class of bug only exists at the
+task/worker-process boundary, which the test suite doesn't cross.
+
+**Verified live in a real browser** against the real worker and real
+Postgres: clicked "Generate Report", watched it move from `queued` to
+`completed` via polling with correct revenue/order data and a fully
+rendered structured answer (including a working "Create Task" button
+on a suggestion); uploaded a 3-row CSV with one intentionally invalid
+row and confirmed the job completed with `total: 3, imported: 2,
+failed: 1` and the correct per-row validation error displayed — zero
+console errors throughout.
 
 ## Phase 17 — Frontend Quality `[ ]` not started
 
@@ -653,8 +724,8 @@ and Copilot rendering."
 | 12 — Frontend Dashboard | ✅ Merged | `phase/12-frontend-dashboard` |
 | 13 — Frontend Customers & Products | ✅ Merged | `phase/13-frontend-customers-products` |
 | 14 — Frontend Orders & Tasks | ✅ Merged | `phase/14-frontend-orders-tasks` |
-| 15 — Frontend AI Copilot | 🟡 Pushed, awaiting merge | `phase/15-frontend-ai-copilot` |
-| 16 — Frontend Reports & Imports | ⬜ Not started | — |
+| 15 — Frontend AI Copilot | ✅ Merged | `phase/15-frontend-ai-copilot` |
+| 16 — Frontend Reports & Imports | 🟡 Pushed, awaiting merge | `phase/16-frontend-reports-imports` |
 | 17 — Frontend Quality | ⬜ Not started | — |
 
 **Test count:** 105 passing (`cd backend && pytest`) · **Lint:** clean (`ruff check`)
@@ -670,9 +741,12 @@ screens (auth + shell); Phase 12 added the first real data screen (the
 dashboard); Phase 13 added the first CRUD screens (Customers,
 Products); Phase 14 added the two screens with real cross-entity
 relationships (Orders, Tasks); Phase 15 wired the frontend up to the
-live AI Gateway built back in Phases 4–5, which surfaced and fixed
-three real backend bugs in that gateway that had never been exercised
-against the real Groq API before — Phases 16–17 build out the rest.
+live AI Gateway, surfacing and fixing three real backend bugs there;
+Phase 16 wired it up to the Celery-backed Reports/Imports jobs from
+Phases 6–7, surfacing and fixing three more real bugs at the
+task/worker-process boundary that the backend test suite structurally
+can't reach. All data-bearing screens in the spec are now built —
+Phase 17 (frontend testing) is what's left.
 
-**Next action:** merge `phase/15-frontend-ai-copilot` into `develop`
-on GitHub, then start Phase 16 — Frontend Reports & Imports.
+**Next action:** merge `phase/16-frontend-reports-imports` into
+`develop` on GitHub, then start Phase 17 — Frontend Quality.
