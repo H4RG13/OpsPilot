@@ -819,3 +819,28 @@ Definition of Done. Worthwhile follow-ups, none of them required:
 - **Dependency upgrades:** `react-router` v7 and `vite`/`esbuild` to
   their latest majors, clearing the `npm audit` findings noted in
   Phase 17 — each is its own migration, not a quick bump.
+
+## Post-Phase-17 polish
+
+Small, self-contained fixes/improvements made after the roadmap closed
+out, each on its own branch rather than forced into a phase number:
+
+- Switched the default AI model to `llama-3.3-70b-versatile`, kept
+  `openai/gpt-oss-120b` as the reasoning/fallback model rather than
+  using the same model for both — verified live that
+  `llama-3.3-70b-versatile` occasionally emits malformed tool-call
+  syntax Groq rejects with a non-retryable 400, so real fallback
+  diversity matters (`chore/switch-groq-model-llama-3.3-70b`).
+- Added `backend/scripts/seed.py`, an idempotent dev seed script that
+  creates the "Acme Demo" org with an OWNER and an ADMIN account plus
+  sample business data (`feature/dev-seed-script`).
+- Replaced the native `<select>` in the shared `Select` component with
+  a fully custom-rendered dropdown (a native select's open option list
+  is OS-rendered and can't be themed, which is why the previous
+  version looked like plain unstyled browser UI). The option panel
+  portals to `document.body` so it always escapes any ancestor
+  `overflow-x-auto` container — this matters concretely for the
+  per-row order-status dropdown, which lives inside the Orders table's
+  scroll wrapper from Phase 17's responsive fix. Kept the exact same
+  external API (`value`/`onChange`/`<option>` children) so none of the
+  8 call sites needed to change (`feature/custom-select-dropdown`).
