@@ -1,7 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { ComingSoon } from "@/components/common/ComingSoon";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RegisterPage } from "@/features/auth/RegisterPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
@@ -10,6 +9,8 @@ import { ProductsPage } from "@/features/products/ProductsPage";
 import { OrdersPage } from "@/features/orders/OrdersPage";
 import { TasksPage } from "@/features/tasks/TasksPage";
 import { CopilotPage } from "@/features/copilot/CopilotPage";
+import { ReportsPage } from "@/features/reports/ReportsPage";
+import { ImportsPage } from "@/features/imports/ImportsPage";
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -26,8 +27,8 @@ const router = createBrowserRouter([
           { path: "/orders", element: <OrdersPage /> },
           { path: "/tasks", element: <TasksPage /> },
           { path: "/copilot", element: <CopilotPage /> },
-          { path: "/reports", element: <ComingSoon title="Reports" /> },
-          { path: "/imports", element: <ComingSoon title="Imports" /> },
+          { path: "/reports", element: <ReportsPage /> },
+          { path: "/imports", element: <ImportsPage /> },
         ],
       },
     ],

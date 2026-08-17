@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.modules.imports import service as imports_service
 from app.workers.celery_app import celery_app
 
@@ -20,5 +20,13 @@ def run_import_job(self, job_id: str) -> None:
 
 
 async def _run_import_job_async(job_id: str) -> None:
-    async with AsyncSessionLocal() as db:
-        await imports_service.run_import_job(db, uuid.UUID(job_id))
+    try:
+        async with AsyncSessionLocal() as db:
+            await imports_service.run_import_job(db, uuid.UUID(job_id))
+    finally:
+        # asyncpg connections are bound to the event loop that created them, but
+        # `asyncio.run()` gives each task invocation its own loop while `engine`
+        # is a module-level singleton shared across tasks in this worker process.
+        # Dispose the pool now so the next task's loop opens fresh connections
+        # instead of reusing ones tied to this (about to close) loop.
+        await engine.dispose()
