@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 11 — Frontend Auth & Shell.** Backend MVP (Phases 0–9)
+> Status: **Phase 12 — Frontend Dashboard.** Backend MVP (Phases 0–9)
 > is complete; the frontend is being built out phase by phase (see
 > `PLAN.md`). See `RULES.md` for the branching
 > and release workflow, and
@@ -198,7 +198,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 11)
+## Known Limitations (Phase 12)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -400,9 +400,6 @@ a redirect to `/login` if the refresh itself fails; auth endpoints
 themselves are excluded from this flow so a wrong-password error shows
 as a normal form message, not a forced logout.
 
-- Every section besides Dashboard (Customers, Products, Orders, Tasks,
-  AI Copilot, Reports, Imports) is a shared `ComingSoon` placeholder —
-  Phases 12–16 replace them one at a time.
 - The UI kit is a small hand-rolled set (`Button`, `Input`, `Card`,
   `Alert`) rather than the shadcn/ui called out in the spec's tech stack
   — a deliberate simplification given how little UI exists so far,
@@ -416,3 +413,34 @@ as a normal form message, not a forced logout.
 - Still no frontend tests (`npm run test` has nothing to run) — that's
   Phase 17, per the spec's own phasing (Section 23 lists frontend
   testing as its own concern, separate from backend testing).
+
+**Phase 12 — the dashboard is the first real data screen.** KPI cards
+(revenue, orders, active customers, AOV), a revenue trend chart with a
+day/week/month toggle, top products, customer activity, and recent
+orders/tasks widgets all pull live data from the existing analytics/
+orders/tasks endpoints. A shared `QueryState` component gives every
+widget the same loading/error/empty handling from one place instead of
+six hand-rolled copies, per the spec's explicit requirement (Section
+15) that every widget handle all three states.
+
+Verified against the live dev stack with real seeded data (one
+customer, two products, two orders, one task) using Playwright driving
+an actual browser: every widget rendered the correct numbers, the
+granularity toggle worked, and there were no console errors.
+
+**Bug caught by actually running it, not just building it:** after
+writing all the Phase 12 files, the dashboard kept showing the old
+Phase 11 "coming in Phase 12" placeholder even though the route already
+pointed at the new component and the bind-mounted source was correct —
+the long-running Vite dev server inside the Docker container needed a
+restart to pick up the new route composition. A visual browser check
+caught this immediately; `tsc`/`vite build` passing would not have.
+
+- Every section besides Dashboard (Customers, Products, Orders, Tasks,
+  AI Copilot, Reports, Imports) is still a shared `ComingSoon`
+  placeholder — Phases 13–16 replace them one at a time.
+- The revenue trend chart renders a single point when all activity
+  falls on one day (as with the demo seed data above) — this is
+  correct behavior, not a bug, but it means the chart's visual value
+  is easier to appreciate once there's data spread across a longer
+  window.

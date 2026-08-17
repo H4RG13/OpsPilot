@@ -416,19 +416,46 @@ requests that triggered the refresh, not unhandled exceptions).
 **Known limitation:** no frontend tests yet (that's Phase 17, per spec
 Section 23's own phasing); `npm run test` still has nothing to run.
 
-## Phase 12 — Frontend Dashboard `[ ]` not started
+## Phase 12 — Frontend Dashboard `[x]` merged
 
 Spec Section 15.
 
-- [ ] KPI cards: revenue, orders, customers, average order value
-      (`GET /analytics/overview`)
-- [ ] Revenue trend chart with date-range filter (`GET /analytics/revenue`,
-      Recharts)
-- [ ] Top products table/chart (`GET /analytics/products`)
-- [ ] Customer activity + at-risk count (`GET /analytics/customers`)
-- [ ] Recent orders and recent tasks widgets
-- [ ] Loading, empty, error, and permission states for every widget
-      (explicitly required by spec Section 15)
+- [x] KPI cards: revenue, orders, active customers, average order value
+      (`GET /analytics/overview`), with a 4-card skeleton loading state
+      that preserves the grid layout instead of collapsing it
+- [x] Revenue trend chart with a day/week/month granularity toggle
+      (`GET /analytics/revenue`), Recharts `AreaChart`, empty state when
+      there's no data for the selected range
+- [x] Top products card (`GET /analytics/products`) — revenue + quantity
+      sold per product, ranked
+- [x] Customer activity card (`GET /analytics/customers`) — total, new,
+      active, at-risk counts, at-risk highlighted when > 0
+- [x] Recent orders and recent tasks widgets — last 5 of each, with
+      status/priority badges and a "View all" link to the (still
+      `ComingSoon`) Phase 13/14 pages
+- [x] Shared `QueryState` component so every widget gets consistent
+      loading/error/empty handling from one place instead of six
+      hand-rolled copies (explicitly required by spec Section 15)
+
+**Verified live in a real browser** (Playwright driving the dev server
+with real seeded data — one customer, two products, two orders, one
+task): all six widgets render the correct real numbers (revenue
+$209.94, 2 orders, 1 active customer, $104.97 AOV, both products and
+both orders listed, the seeded task with its priority badge), the
+day/week/month toggle switches the chart's active state and re-renders
+the trend, and there were zero console errors.
+
+**Bug caught by actually running it:** the dashboard initially kept
+rendering the old Phase 11 "coming in Phase 12" placeholder even after
+all the new widget files were written — the Vite dev server running
+inside the long-lived Docker container needed a restart to pick up the
+new route composition cleanly (the bind-mounted source was already
+correct; it was a stale dev-server state, not a code bug). Caught only
+because the dashboard was checked in an actual browser instead of
+trusting `npm run build`/`lint` passing.
+
+**Known limitation:** no frontend tests yet (still Phase 17, per spec
+Section 23's own phasing).
 
 ## Phase 13 — Frontend Customers & Products `[ ]` not started
 
@@ -510,8 +537,8 @@ and Copilot rendering."
 | 8 — Quality | ✅ Merged | `phase/8-quality` |
 | 9 — Deployment | ✅ Merged | `phase/9-deployment` |
 | 10 — Advanced | ⬜ Not started (optional) | — |
-| 11 — Frontend Auth & Shell | 🟡 Pushed, awaiting merge | `phase/11-frontend-auth-shell` |
-| 12 — Frontend Dashboard | ⬜ Not started | — |
+| 11 — Frontend Auth & Shell | ✅ Merged | `phase/11-frontend-auth-shell` |
+| 12 — Frontend Dashboard | 🟡 Pushed, awaiting merge | `phase/12-frontend-dashboard` |
 | 13 — Frontend Customers & Products | ⬜ Not started | — |
 | 14 — Frontend Orders & Tasks | ⬜ Not started | — |
 | 15 — Frontend AI Copilot | ⬜ Not started | — |
@@ -526,9 +553,10 @@ phases 0–5 above were deleted under the old policy before this changed.
 
 **Status:** the core backend MVP (Phases 0–9) is merged and functionally
 complete per the spec's Definition of Done (Section 28); Phase 10 is
-optional/advanced scope. Phase 11 gives the frontend its first real
-screens (auth + shell) — Phases 12–17 build out the rest, screen by
-screen, the same disciplined way the backend was built.
+optional/advanced scope. Phase 11 gave the frontend its first real
+screens (auth + shell); Phase 12 adds the first real data screen (the
+dashboard) — Phases 13–17 build out the rest, screen by screen, the
+same disciplined way the backend was built.
 
-**Next action:** merge `phase/11-frontend-auth-shell` into `develop` on
-GitHub, then start Phase 12 — Frontend Dashboard.
+**Next action:** merge `phase/12-frontend-dashboard` into `develop` on
+GitHub, then start Phase 13 — Frontend Customers & Products.
