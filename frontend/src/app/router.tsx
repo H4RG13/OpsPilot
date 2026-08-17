@@ -5,6 +5,8 @@ import { ComingSoon } from "@/components/common/ComingSoon";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RegisterPage } from "@/features/auth/RegisterPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
+import { CustomersPage } from "@/features/customers/CustomersPage";
+import { ProductsPage } from "@/features/products/ProductsPage";
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -16,8 +18,8 @@ const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { path: "/", element: <DashboardPage /> },
-          { path: "/customers", element: <ComingSoon title="Customers" /> },
-          { path: "/products", element: <ComingSoon title="Products" /> },
+          { path: "/customers", element: <CustomersPage /> },
+          { path: "/products", element: <ProductsPage /> },
           { path: "/orders", element: <ComingSoon title="Orders" /> },
           { path: "/tasks", element: <ComingSoon title="Tasks" /> },
           { path: "/copilot", element: <ComingSoon title="AI Copilot" /> },
