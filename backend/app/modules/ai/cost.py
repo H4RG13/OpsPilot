@@ -5,9 +5,9 @@ from decimal import Decimal
 # current Groq pricing — update against provider docs before using this
 # for real budget decisions (see spec Section 33).
 COST_PER_1K_TOKENS: dict[str, tuple[Decimal, Decimal]] = {
-    "gpt-oss-20b": (Decimal("0.00010"), Decimal("0.00010")),
-    "gpt-oss-120b": (Decimal("0.00050"), Decimal("0.00050")),
-    "qwen-3.6-27b": (Decimal("0.00020"), Decimal("0.00020")),
+    "openai/gpt-oss-20b": (Decimal("0.00010"), Decimal("0.00010")),
+    "openai/gpt-oss-120b": (Decimal("0.00050"), Decimal("0.00050")),
+    "qwen/qwen3.6-27b": (Decimal("0.00020"), Decimal("0.00020")),
 }
 _DEFAULT_RATE = (Decimal("0"), Decimal("0"))
 

@@ -85,7 +85,9 @@ async def test_generate_with_tools_parses_tool_calls():
                                     "id": "call_1",
                                     "function": {
                                         "name": "get_revenue_summary",
-                                        "arguments": {"start_date": "2026-01-01"},
+                                        # Real Groq/OpenAI wire format always JSON-encodes
+                                        # arguments as a string, never a bare object.
+                                        "arguments": '{"start_date": "2026-01-01"}',
                                     },
                                 }
                             ],

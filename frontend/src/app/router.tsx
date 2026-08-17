@@ -9,6 +9,7 @@ import { CustomersPage } from "@/features/customers/CustomersPage";
 import { ProductsPage } from "@/features/products/ProductsPage";
 import { OrdersPage } from "@/features/orders/OrdersPage";
 import { TasksPage } from "@/features/tasks/TasksPage";
+import { CopilotPage } from "@/features/copilot/CopilotPage";
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -24,7 +25,7 @@ const router = createBrowserRouter([
           { path: "/products", element: <ProductsPage /> },
           { path: "/orders", element: <OrdersPage /> },
           { path: "/tasks", element: <TasksPage /> },
-          { path: "/copilot", element: <ComingSoon title="AI Copilot" /> },
+          { path: "/copilot", element: <CopilotPage /> },
           { path: "/reports", element: <ComingSoon title="Reports" /> },
           { path: "/imports", element: <ComingSoon title="Imports" /> },
         ],

@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     openai_api_key: str = ""
 
-    ai_default_model: str = "gpt-oss-20b"
-    ai_reasoning_model: str = "gpt-oss-120b"
-    ai_vision_model: str = "qwen-3.6-27b"
+    ai_default_model: str = "openai/gpt-oss-20b"
+    ai_reasoning_model: str = "openai/gpt-oss-120b"
+    ai_vision_model: str = "qwen/qwen3.6-27b"
     ai_request_timeout_seconds: float = 30.0
     ai_max_retries_per_model: int = 2
 

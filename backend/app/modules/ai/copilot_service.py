@@ -66,11 +66,29 @@ class CopilotService:
                 final_response = response
                 break
 
-            messages.append({"role": "assistant", "content": response.content or ""})
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": response.content or "",
+                    "tool_calls": [
+                        {
+                            "id": call.id,
+                            "type": "function",
+                            "function": {"name": call.name, "arguments": json.dumps(call.arguments)},
+                        }
+                        for call in response.tool_calls
+                    ],
+                }
+            )
             for call in response.tool_calls:
                 result = await execute_tool(db, tool_ctx, call.name, call.arguments)
                 messages.append(
-                    {"role": "tool", "name": call.name, "content": json.dumps(result)}
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "name": call.name,
+                        "content": json.dumps(result),
+                    }
                 )
         else:
             final_response = await self._ai_service.generate_text(
