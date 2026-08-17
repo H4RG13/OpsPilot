@@ -7,7 +7,9 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 8 — Quality.** See `RULES.md` for the branching
+> Status: **Phase 11 — Frontend Auth & Shell.** Backend MVP (Phases 0–9)
+> is complete; the frontend is being built out phase by phase (see
+> `PLAN.md`). See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -196,7 +198,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 8)
+## Known Limitations (Phase 11)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -382,3 +384,35 @@ its own `anyio` task group, which doesn't reliably propagate exceptions
 to an app-level catch-all `Exception` handler (they surfaced as an
 `ExceptionGroup` instead, defeating the very hardening this phase was
 adding). Replaced with a single pure-ASGI middleware class instead.
+
+Phase 9 (Deployment — CI, production Docker images, deployment docs) and
+its own bugs/decisions are covered above under "Continuous Integration"
+and "Production Deployment" rather than repeated here.
+
+**Phase 11 — the frontend has its first real screens.** Login, register
+(auto-logs-in on success, matching the backend), a protected-route
+wrapper, and an app shell (sidebar nav, header with org name + role,
+logout) are implemented and verified against the live backend — not just
+built and assumed to work. Token refresh is handled by an axios
+interceptor: a 401 triggers `POST /auth/refresh` (de-duplicated across
+concurrent requests), retries the original request once, and only forces
+a redirect to `/login` if the refresh itself fails; auth endpoints
+themselves are excluded from this flow so a wrong-password error shows
+as a normal form message, not a forced logout.
+
+- Every section besides Dashboard (Customers, Products, Orders, Tasks,
+  AI Copilot, Reports, Imports) is a shared `ComingSoon` placeholder —
+  Phases 12–16 replace them one at a time.
+- The UI kit is a small hand-rolled set (`Button`, `Input`, `Card`,
+  `Alert`) rather than the shadcn/ui called out in the spec's tech stack
+  — a deliberate simplification given how little UI exists so far,
+  worth revisiting once there's enough screen surface to justify the
+  setup cost.
+- Tokens are stored in `localStorage`, not an `httpOnly` cookie — the
+  backend's auth endpoints return tokens in the JSON response body (not
+  a `Set-Cookie` header), so this is the pragmatic client-side choice
+  matching the API as built, with the usual XSS-exposure tradeoff that
+  implies.
+- Still no frontend tests (`npm run test` has nothing to run) — that's
+  Phase 17, per the spec's own phasing (Section 23 lists frontend
+  testing as its own concern, separate from backend testing).
