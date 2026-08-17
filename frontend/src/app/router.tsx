@@ -7,6 +7,8 @@ import { RegisterPage } from "@/features/auth/RegisterPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { CustomersPage } from "@/features/customers/CustomersPage";
 import { ProductsPage } from "@/features/products/ProductsPage";
+import { OrdersPage } from "@/features/orders/OrdersPage";
+import { TasksPage } from "@/features/tasks/TasksPage";
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -20,8 +22,8 @@ const router = createBrowserRouter([
           { path: "/", element: <DashboardPage /> },
           { path: "/customers", element: <CustomersPage /> },
           { path: "/products", element: <ProductsPage /> },
-          { path: "/orders", element: <ComingSoon title="Orders" /> },
-          { path: "/tasks", element: <ComingSoon title="Tasks" /> },
+          { path: "/orders", element: <OrdersPage /> },
+          { path: "/tasks", element: <TasksPage /> },
           { path: "/copilot", element: <ComingSoon title="AI Copilot" /> },
           { path: "/reports", element: <ComingSoon title="Reports" /> },
           { path: "/imports", element: <ComingSoon title="Imports" /> },
