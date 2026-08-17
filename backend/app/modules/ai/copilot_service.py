@@ -74,7 +74,10 @@ class CopilotService:
                         {
                             "id": call.id,
                             "type": "function",
-                            "function": {"name": call.name, "arguments": json.dumps(call.arguments)},
+                            "function": {
+                                "name": call.name,
+                                "arguments": json.dumps(call.arguments),
+                            },
                         }
                         for call in response.tool_calls
                     ],
