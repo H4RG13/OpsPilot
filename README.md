@@ -7,7 +7,7 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 13 — Frontend Customers & Products.** Backend MVP (Phases 0–9)
+> Status: **Phase 14 — Frontend Orders & Tasks.** Backend MVP (Phases 0–9)
 > is complete; the frontend is being built out phase by phase (see
 > `PLAN.md`). See `RULES.md` for the branching
 > and release workflow, and
@@ -198,7 +198,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 13)
+## Known Limitations (Phase 14)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -466,10 +466,47 @@ be rebuilt.
   12) so a stale Vite dev-server session couldn't produce a false
   negative.
 
-- Every section besides Dashboard, Customers, and Products (Orders,
-  Tasks, AI Copilot, Reports, Imports) is still a shared `ComingSoon`
-  placeholder — Phases 14–16 replace them one at a time.
 - Table pagination has no page-size selector (fixed at 20 rows) — not
   a spec requirement, easy to add later if needed.
+
+**Phase 14 — Orders and Tasks, the first screens with real
+cross-entity relationships.** Orders reference a customer and one or
+more products; Tasks reference an assignable user. Both replace their
+`ComingSoon` placeholders with full list/filter/pagination/create/edit
+screens, reusing the `Select`/`Modal`/`ConfirmDialog`/`Pagination`
+primitives and `canWrite(role)` gating built in Phase 13 without any
+changes to those primitives.
+
+- Orders: status filter, a create-order flow with dynamic
+  product + quantity rows and a client-side "estimated total" (labeled
+  as such — the server always computes the real total and item unit
+  prices, never trusting the client), a status-update `<select>` per
+  row for `ADMIN`+, and a detail modal showing resolved product names,
+  quantities, unit prices, and subtotals. There is no delete action —
+  the backend has no `DELETE /orders/{id}` endpoint at all.
+- Tasks: status + priority filters, create/edit modal. Editing also
+  exposes a status field (creation defaults to `open` server-side, per
+  the API).
+- **Known gap called out rather than silently worked around:** the API
+  supports assigning a task to a user (`assigned_to`), but there is no
+  endpoint anywhere in the backend to list organization members, so a
+  real "assign to teammate" dropdown has no data to populate. Rather
+  than fake it with a raw UUID text box, Phase 14 ships a simple
+  "Assign to me" checkbox using the current user's own ID from
+  `useAuth()`, with assigning to teammates deferred until a
+  list-members endpoint exists.
+- The Orders page resolves `customer_id`/`product_id` to display names
+  by fetching the customers/products lists at `page_size=100` and
+  building a lookup map client-side (those endpoints return only IDs,
+  not names). This assumes fewer than 100 of each — correct for this
+  portfolio's demo data, but not how a real lookup would scale.
+- Verified live in a browser (Playwright): created an order for an
+  existing customer with 2 units of a product and confirmed the
+  server-computed total ($99.98 for 2× $49.99) appeared correctly in
+  both the list and the detail modal; updated an order's status;
+  created and then edited a task (priority, status, self-assignment) —
+  zero console errors throughout.
 - Still no frontend tests (`npm run test` has nothing to run) — Phase
-  17.
+  17. Every section besides Dashboard, Customers, Products, Orders,
+  and Tasks (AI Copilot, Reports, Imports) is still a shared
+  `ComingSoon` placeholder — Phases 15–16 replace them one at a time.

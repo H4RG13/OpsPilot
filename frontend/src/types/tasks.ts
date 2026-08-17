@@ -12,3 +12,20 @@ export interface TaskResponse {
   due_date: string | null;
   created_at: string;
 }
+
+export interface TaskCreatePayload {
+  title: string;
+  description?: string;
+  priority?: TaskPriority;
+  assigned_to?: string;
+  due_date?: string;
+}
+
+export interface TaskUpdatePayload {
+  title?: string;
+  description?: string;
+  priority?: TaskPriority;
+  status?: TaskStatus;
+  assigned_to?: string | null;
+  due_date?: string;
+}

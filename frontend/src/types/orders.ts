@@ -16,3 +16,14 @@ export interface OrderResponse {
   ordered_at: string;
   items: OrderItemResponse[];
 }
+
+export interface OrderItemInput {
+  product_id: string;
+  quantity: number;
+}
+
+export interface OrderCreatePayload {
+  customer_id: string;
+  items: OrderItemInput[];
+}
+

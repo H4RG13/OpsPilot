@@ -487,16 +487,53 @@ so a stale Vite session couldn't produce a false negative.
 Section 23's own phasing). Table pagination has no page-size selector
 (fixed at 20) — not required by the spec, easy to add later if needed.
 
-## Phase 14 — Frontend Orders & Tasks `[ ]` not started
+## Phase 14 — Frontend Orders & Tasks `[x]` merged
 
-- [ ] Order list with status filter (`GET /orders`)
-- [ ] Order detail view showing line items and computed total
-- [ ] Create-order flow: pick customer + products/quantities, submit to
-      `POST /orders` (client never computes/sends a price — matches the
-      backend's server-computed-totals guarantee)
-- [ ] Order status update (`PATCH /orders/{id}`)
-- [ ] Task list with status/priority filters, create/edit/assign
-      (`GET/POST /tasks`, `PATCH /tasks/{id}`)
+- [x] Order list with status filter (`GET /orders`), customer name
+      resolved via a client-side lookup against the customers list
+      (the order response only carries `customer_id`)
+- [x] Order detail modal showing line items (product name via the same
+      kind of lookup against the products list), quantity, unit price,
+      subtotal, and the server-computed total
+- [x] Create-order flow: pick a customer, add one or more
+      product + quantity rows (dynamic add/remove), submit to
+      `POST /orders`. The client never computes or sends a price — an
+      "estimated total" is shown for UX only, computed client-side from
+      the product list's price field, with an explicit label that the
+      server computes the real total, matching the backend's
+      server-computed-totals guarantee
+- [x] Order status update: an inline `<select>` per row (`PATCH
+      /orders/{id}`), ADMIN+ only — `MEMBER`s see a static status badge
+      instead, same read/write split as Customers/Products
+- [x] Task list with status + priority filters, pagination
+      (`GET /tasks`)
+- [x] Task create/edit modal (`POST`/`PATCH /tasks`), ADMIN+ only
+
+**Known gap surfaced, not silently worked around:** the spec calls for
+task "assign" but the backend has no endpoint to list organization
+members, so there's no data source for a real assignee dropdown.
+Rather than fake it with a raw UUID input, Phase 14 ships a simple
+"Assign to me" checkbox (self-assign via the current user's own ID from
+`useAuth()`) and documents assigning to teammates as a follow-up that
+needs a small backend addition first — flagged to the user and
+explicitly chosen over the alternatives (pausing to add the backend
+endpoint now, or a raw-UUID text box) before building.
+
+**Verified live in a real browser** (Playwright): created an order for
+an existing customer with 2× a product, confirmed the order list and
+detail modal showed the correct server-computed subtotal/total
+($99.98 for 2× a $49.99 item), updated its status via the row select,
+created a task with high priority and self-assignment, then edited it
+to change status — all with zero console errors. The frontend
+container was restarted before verification (same precaution as
+Phases 12–13).
+
+**Known limitations:** no frontend tests yet (Phase 17); orders have no
+delete endpoint on the backend, so there's intentionally no delete
+action in the UI; the customer/product name lookups powering the
+Orders page assume the org has fewer than 100 of each (matches the
+`page_size=100` picker fetch) — fine for this portfolio's demo data,
+would need real pagination-aware lookups at larger scale.
 
 ## Phase 15 — Frontend AI Copilot `[ ]` not started
 
@@ -558,8 +595,8 @@ and Copilot rendering."
 | 10 — Advanced | ⬜ Not started (optional) | — |
 | 11 — Frontend Auth & Shell | ✅ Merged | `phase/11-frontend-auth-shell` |
 | 12 — Frontend Dashboard | ✅ Merged | `phase/12-frontend-dashboard` |
-| 13 — Frontend Customers & Products | 🟡 Pushed, awaiting merge | `phase/13-frontend-customers-products` |
-| 14 — Frontend Orders & Tasks | ⬜ Not started | — |
+| 13 — Frontend Customers & Products | ✅ Merged | `phase/13-frontend-customers-products` |
+| 14 — Frontend Orders & Tasks | 🟡 Pushed, awaiting merge | `phase/14-frontend-orders-tasks` |
 | 15 — Frontend AI Copilot | ⬜ Not started | — |
 | 16 — Frontend Reports & Imports | ⬜ Not started | — |
 | 17 — Frontend Quality | ⬜ Not started | — |
@@ -574,9 +611,11 @@ phases 0–5 above were deleted under the old policy before this changed.
 complete per the spec's Definition of Done (Section 28); Phase 10 is
 optional/advanced scope. Phase 11 gave the frontend its first real
 screens (auth + shell); Phase 12 added the first real data screen (the
-dashboard); Phase 13 adds the first CRUD screens (Customers, Products)
-— Phases 14–17 build out the rest, screen by screen, the same
+dashboard); Phase 13 added the first CRUD screens (Customers,
+Products); Phase 14 adds the two screens with real cross-entity
+relationships (Orders reference Customers/Products, Tasks reference
+users) — Phases 15–17 build out the rest, screen by screen, the same
 disciplined way the backend was built.
 
-**Next action:** merge `phase/13-frontend-customers-products` into
-`develop` on GitHub, then start Phase 14 — Frontend Orders & Tasks.
+**Next action:** merge `phase/14-frontend-orders-tasks` into `develop`
+on GitHub, then start Phase 15 — Frontend AI Copilot.
