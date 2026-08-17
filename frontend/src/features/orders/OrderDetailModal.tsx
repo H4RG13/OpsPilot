@@ -16,6 +16,7 @@ export function OrderDetailModal({ order, productsById, onClose }: OrderDetailMo
         <p className="text-xs text-slate-500">
           Placed {new Date(order.ordered_at).toLocaleString()}
         </p>
+        <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
@@ -38,6 +39,7 @@ export function OrderDetailModal({ order, productsById, onClose }: OrderDetailMo
             ))}
           </tbody>
         </table>
+        </div>
         <div className="flex justify-end border-t border-slate-800 pt-3 text-sm font-semibold text-slate-100">
           Total: {formatCurrency(order.total_amount)}
         </div>

@@ -7,9 +7,10 @@ Built as a portfolio-grade, backend-focused full-stack project demonstrating
 Python/FastAPI, PostgreSQL, React/TypeScript, AI model routing and tool
 calling, background jobs, security, and testing.
 
-> Status: **Phase 16 — Frontend Reports & Imports.** Backend MVP (Phases 0–9)
-> is complete; the frontend is being built out phase by phase (see
-> `PLAN.md`). See `RULES.md` for the branching
+> Status: **Phase 17 — Frontend Quality (final planned phase).** The full
+> spec — backend and frontend — is implemented (see `PLAN.md`). Phase 10
+> (Advanced: RAG, additional AI providers) remains optional/unstarted.
+> See `RULES.md` for the branching
 > and release workflow, and
 > [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md) for the
 > full implementation spec this project follows.
@@ -92,16 +93,9 @@ pytest
 cd frontend
 npm install
 npm run lint    # ESLint
+npm run test    # Vitest + React Testing Library
 npm run build   # tsc type-check + production build
 ```
-
-There are no frontend test files yet — `npm run test` (Vitest) exits
-non-zero with "No test files found" until the frontend actually has
-components with logic worth testing. Per the spec's "backend-focused"
-framing (Section 2), every phase so far has stayed on the backend; the
-frontend is still the Phase 0 scaffold plus a placeholder dashboard. CI
-therefore runs `lint` + `build` for the frontend, not `test` — that will
-change once real UI work adds something meaningful to assert against.
 
 ## Continuous Integration
 
@@ -111,7 +105,8 @@ Every push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/
   needed, since the whole suite runs against an in-memory SQLite database
   and injectable fakes for Redis/Celery/the LLM provider (see Known
   Limitations across every phase above for why that's true by design).
-- **Frontend job:** `npm run lint` (ESLint) then `npm run build`
+- **Frontend job:** `npm run lint` (ESLint), `npm run test` (Vitest +
+  React Testing Library, added in Phase 17), then `npm run build`
   (type-check + production build).
 
 ## Production Deployment
@@ -198,7 +193,7 @@ Development proceeds in phases (see the project specification, Section 27):
 Setup → Auth → Core Data → Analytics → AI Gateway → Copilot → Automation →
 Imports → Quality → Deployment → Advanced (RAG, additional providers).
 
-## Known Limitations (Phase 16)
+## Known Limitations (Phase 17 — final planned phase)
 
 - Auth is implemented: register (creates an organization + OWNER
   membership), login, JWT access/refresh tokens with rotation-on-refresh,
@@ -609,3 +604,49 @@ failed: 1` with the correct per-row error — zero console errors.
 
 Every section in the spec's frontend scope is now built. Phase 17
 (frontend testing) is what remains.
+
+**Phase 17 — frontend testing, and the last bug this build found.**
+Vitest + jsdom + React Testing Library (already sitting unused in
+`package.json` since the Phase 0 scaffold) are wired up with a
+`vite.config.ts` `test` block, a setup file, and a small
+`renderWithProviders` helper. 11 tests across 5 files cover the
+riskiest logic built across Phases 11–16: `LoginPage`/`RegisterPage`
+(credential submission, client-side password-length validation,
+error display without navigating away), `ProtectedRoute` (loading,
+redirect, and authenticated states), and the Copilot's
+`StructuredAnswer` (rendering, and "Create Task" actually calling
+`POST /tasks`) and `ChatPanel`'s `allow_ai_actions` toggle (verifying
+the exact payload sent for both checkbox states). `npm run test` now
+passes and runs in CI, closing a gap documented since Phase 9.
+
+The spec also calls for a responsive/accessibility pass across
+Phases 11–16. Auditing every route at a 375px mobile viewport with
+Playwright found a real bug: every table-bearing page (Customers,
+Products, Orders, Tasks, Reports) caused the *entire page* to scroll
+horizontally instead of just the table. Root cause was a classic
+flexbox trap — `AppShell`'s content column was missing `min-w-0`, so a
+flex child can't shrink below its content's intrinsic width and a wide
+table forced the whole layout wider than the viewport. Fixed with
+`min-w-0` on that column, `overflow-x-hidden` on `<main>`, and an
+`overflow-x-auto` wrapper around all 6 `<table>` call sites — confirmed
+with a before/after Playwright check that page-level horizontal
+overflow went from present on 6 routes to present on none.
+
+**Known gap, documented rather than solved here:** the sidebar is
+fixed-width and doesn't collapse into a hamburger menu on small
+viewports, so mobile users get a cramped (but no longer broken)
+content column. A real mobile nav is a distinct, larger feature than a
+horizontal-overflow fix.
+
+**Pre-existing, out of scope for this phase:** `npm audit` flags
+`react-router` (fix requires v6 → v7) and `esbuild`/`vite` (fix
+requires a new `vite` major) advisories — both are their own
+migrations, not testing work, and are left as known follow-ups.
+
+**This closes out the frontend roadmap.** Phases 11–17 built every
+screen in the spec, backed by real API calls, catching and fixing real
+bugs — in the frontend, the AI Gateway, and the Celery workers — at
+every step by actually running the app instead of trusting builds and
+mocks. Phase 10 (Advanced: RAG, additional AI providers, per-org model
+policy) remains the only unstarted, explicitly optional scope from the
+original spec.
