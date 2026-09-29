@@ -83,6 +83,25 @@ docker compose up --build
 
 ### Seeding demo data
 
+Migration `0009_seed_demo_data` loads an "Acme Commerce" organization as
+part of `alembic upgrade head` (skipped when `APP_ENV=production`):
+OWNER/ADMIN/MEMBER accounts (`owner@`, `admin@`, `member@acme-commerce.example`
+/ `supersecret123`), 10 customers, 10 products, 60 orders over the last 90
+days, and 6 tasks. Its `downgrade()` removes only those rows, so you can
+refresh the dummy data or wipe everything:
+
+```bash
+# Refresh just the demo data
+docker compose exec backend alembic downgrade 0008
+docker compose exec backend alembic upgrade head
+
+# Full reset — drops every table (and all data), then rebuilds + reseeds
+docker compose exec backend alembic downgrade base
+docker compose exec backend alembic upgrade head
+```
+
+The older standalone script is still available for a smaller dataset:
+
 ```bash
 docker compose exec backend python -m scripts.seed
 ```
